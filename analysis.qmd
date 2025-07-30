@@ -1,0 +1,43 @@
+---
+title: "60HN"
+number-sections: true
+format:
+  html:
+    toc: true
+    toc-depth: 4
+editor: source
+editor_options: 
+  chunk_output_type: console
+#bibliography: references.bib
+#csl: the-american-naturalist.csl
+---
+
+```{r include = FALSE, eval = FALSE}
+knitr::purl("malarone.qmd", "tmp.R", documentation = FALSE)
+source("tmp.R")
+file.remove("tmp.R")
+
+add_nojekyll <- function() {
+  file <- ".nojekyll"
+  file.create(file)
+  gert::git_add(file)
+  gert::git_commit("Adding the .nojekyll file")
+  gert::git_push()
+}
+```
+
+```{r include = FALSE}
+par2 <- function(...) par(..., mgp = c(1.5, .5, 0), bty = "n")
+
+knitr::knit_hooks$set(
+  margin1 = function(before, options, envir) {
+    if (before) par2(plt = c(.105, .97, .15, .95)) else NULL
+  })
+
+eps <- .8
+knitr::opts_chunk$set(margin1    = TRUE,
+                      fig.retina = 2,
+                      fig.align  = "center",
+                      fig.height = eps * 5, # default is 5
+                      fig.width  = eps * 7) # default is 7
+```
