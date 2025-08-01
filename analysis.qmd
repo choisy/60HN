@@ -41,3 +41,89 @@ knitr::opts_chunk$set(margin1    = TRUE,
                       fig.height = eps * 5, # default is 5
                       fig.width  = eps * 7) # default is 7
 ```
+
+
+## Constants
+
+```{r}
+path2data <- "/Users/MarcChoisy/Library/CloudStorage/OneDrive-OxfordUniversityClinicalResearchUnit/GitHub/choisy/60HN/"
+```
+
+```{r}
+data_file <- "25-7-2025-_60HN_PATIENT_P1_Data.xlsx"
+```
+
+```{r include = FALSE}
+path2cache <- paste0(path2data, "cache/")
+if (! dir.exists(path2cache)) dir.create(path2cache)
+make_path <- function(x) paste0(path2cache, x)
+file_exists <- function(x) file.exists(make_path(x))
+readRDS2 <- function(x) readRDS(make_path(x))
+saveRDS2 <- function(object, file) saveRDS(object, make_path(file))
+```
+
+
+## Packages
+
+```{r warning = FALSE, message = FALSE}
+library(readxl)
+library(purrr)
+library(dplyr)
+library(lubridate)
+```
+
+
+## Data
+
+Reading the data:
+
+```{r eval = FALSE}
+file <- paste0(path2data, data_file)
+sheets <- file |>
+  excel_sheets() |> 
+  head(-1)
+
+data60HN <- sheets |> 
+  map(read_excel, path = file) |> 
+  setNames(sheets) |> 
+  map(~ .x |>  # de-duplication of records
+        group_by(USUBJID) |> 
+        group_modify(~ .x |>
+                       arrange(desc(entry)) |> 
+                       first()) |> 
+        ungroup())
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("data60HN.rds")) {
+  data60HN <- readRDS2("data60HN.rds")
+} else {
+  file <- paste0(path2data, data_file)
+  sheets <- file |>
+    excel_sheets() |> 
+    head(-1)
+  
+  data60HN2 <- sheets |> 
+    map(read_excel, path = file) |> 
+    setNames(sheets) |> 
+    map(~ .x |>  # de-duplication of records
+          group_by(USUBJID) |> 
+          group_modify(~ .x |>
+                         arrange(desc(entry)) |> 
+                         first()) |> 
+          ungroup())
+
+  saveRDS2(data60HN, "data60HN.rds")
+}
+```
+
+
+## Durations of stay:
+
+```{r}
+data60HN$SCR |> 
+  mutate(SPEC_ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION)),
+         SPEC_DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE))) |> 
+  select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION, - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
+```
+
