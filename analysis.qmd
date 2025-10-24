@@ -127,3 +127,18 @@ data60HN$SCR |>
   select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION, - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
 ```
 
+## Rectal swabs
+
+```{r}
+rectal_file <- paste0(path2data, "Rectalswab_result_2000patient_WHONET_MaldiTOF.xlsx")
+```
+
+```{r}
+whonet <- read_excel(rectal_file, "whonet_all")
+```
+
+```{r}
+table(whonet$`Presence of colonies within zone`)
+table(whonet$`Number of colony types`)
+```
+
