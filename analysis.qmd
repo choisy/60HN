@@ -46,11 +46,14 @@ knitr::opts_chunk$set(margin1    = TRUE,
 ## Constants
 
 ```{r}
-path2data <- "/Users/MarcChoisy/Library/CloudStorage/OneDrive-OxfordUniversityClinicalResearchUnit/GitHub/choisy/60HN/"
+path2data <- paste0("/Users/MarcChoisy/Library/CloudStorage/",
+                    "OneDrive-OxfordUniversityClinicalResearchUnit/",
+                    "GitHub/choisy/60HN/")
 ```
 
 ```{r}
-data_file <- "25-7-2025-_60HN_PATIENT_P1_Data.xlsx"
+#data_file <- "25-7-2025-_60HN_PATIENT_P1_Data.xlsx"
+data_file <- "29-10-2025-_60HN_PATIENT_P1_Data.xlsx"
 ```
 
 ```{r include = FALSE}
@@ -70,6 +73,21 @@ library(readxl)
 library(purrr)
 library(dplyr)
 library(lubridate)
+```
+
+
+## Functions
+
+A function that converts a column `col` of a data frame `x` into a list-column
+(assuming that all the other columns have unique values across rows):
+
+```{r}
+col2listcol <- function(x, col) {
+  names_x <- names(x)
+  x[1, setdiff(names_x, col)] |> 
+    bind_cols(tibble(a = list(x[[col]]))) |> 
+    setNames(names_x)
+}
 ```
 
 
@@ -122,9 +140,12 @@ if (file_exists("data60HN.rds")) {
 
 ```{r}
 data60HN$SCR |> 
-  mutate(SPEC_ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION)),
-         SPEC_DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE))) |> 
-  select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION, - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
+  mutate(SPEC_ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION,
+                                            SPEC_TIME_ADMISSION)),
+         SPEC_DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE,
+                                            SPEC_TIME_DISCHARGE))) |> 
+  select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
+         - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
 ```
 
 ## Rectal swabs
@@ -140,5 +161,65 @@ whonet <- read_excel(rectal_file, "whonet_all")
 ```{r}
 table(whonet$`Presence of colonies within zone`)
 table(whonet$`Number of colony types`)
+```
+
+## MALDI-TOF
+
+```{r}
+library(magrittr)
+library(tidyr)
+```
+
+```{r}
+malditof <- read_excel(paste0(path2data,
+                              "60HN_LAB_ID_20251014_merged_Blue and",
+                              " pink_confirmed by Maldi-TOF.xlsx")) |> 
+  select(USUBJID, SampleSchedule, Identification_MALDITOF)
+```
+
+```{r}
+malditof |> 
+  pull(USUBJID) |> 
+  table() |> 
+  table()
+```
+
+```{r}
+malditof |> 
+  pull(USUBJID) |> 
+  table() |> 
+  is_greater_than(2) |> 
+  which()
+```
+
+```{r}
+malditof |> 
+  group_by(USUBJID, SampleSchedule) |> 
+  group_modify(~ col2listcol(.x, "Identification_MALDITOF")) |> 
+  ungroup()
+```
+
+
+
+
+
+
+
+
+
+```{r}
+malditof |> 
+  pull(SampleSchedule) |> 
+  table()
+```
+
+```{r}
+malditof |> 
+  pull(Identification_MALDITOF) |> 
+  table()
+```
+
+```{r}
+
 ```
 
