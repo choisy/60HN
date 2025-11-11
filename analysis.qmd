@@ -45,15 +45,12 @@ knitr::opts_chunk$set(margin1    = TRUE,
 
 ## Constants
 
+The folder that contains the data files:
+
 ```{r}
 path2data <- paste0("/Users/MarcChoisy/Library/CloudStorage/",
                     "OneDrive-OxfordUniversityClinicalResearchUnit/",
                     "GitHub/choisy/60HN/")
-```
-
-```{r}
-#data_file <- "25-7-2025-_60HN_PATIENT_P1_Data.xlsx"
-data_file <- "29-10-2025-_60HN_PATIENT_P1_Data.xlsx"
 ```
 
 ```{r include = FALSE}
@@ -65,14 +62,45 @@ readRDS2 <- function(x) readRDS(make_path(x))
 saveRDS2 <- function(object, file) saveRDS(object, make_path(file))
 ```
 
+The name of the CRF data file:
+
+```{r}
+CRF_file <- "29-10-2025-_60HN_PATIENT_P1_Data.xlsx"
+```
+
+The name of the MALDI-TOF data file:
+
+```{r}
+MALDITOF_file <- paste0("60HN_LAB_ID_20251014_merged_Blue and",
+                        " pink_confirmed by Maldi-TOF.xlsx")
+```
+
 
 ## Packages
+
+Required packages:
+
+```{r}
+required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm")
+```
+
+Installing those that are not installed yet:
+
+```{r}
+to_install <- required[! required %in% installed.packages()[,"Package"]]
+if (length(to_install)) install.packages(to_install)
+```
+
+Loading some packages for interactive use:
 
 ```{r warning = FALSE, message = FALSE}
 library(readxl)
 library(purrr)
 library(dplyr)
 library(lubridate)
+library(magrittr)
+library(tidyr)
+library(msm)
 ```
 
 
@@ -91,17 +119,18 @@ col2listcol <- function(x, col) {
 ```
 
 
-## Data
+## CRF data
 
 Reading the data:
 
 ```{r eval = FALSE}
-file <- paste0(path2data, data_file)
+file <- paste0(path2data, CRF_file)
+
 sheets <- file |>
   excel_sheets() |> 
   head(-1)
 
-data60HN <- sheets |> 
+CRF <- sheets |> 
   map(read_excel, path = file) |> 
   setNames(sheets) |> 
   map(~ .x |>  # de-duplication of records
@@ -113,15 +142,15 @@ data60HN <- sheets |>
 ```
 
 ```{r include = FALSE, warning = FALSE}
-if (file_exists("data60HN.rds")) {
-  data60HN <- readRDS2("data60HN.rds")
+if (file_exists("CRF.rds")) {
+  CRF <- readRDS2("CRF.rds")
 } else {
-  file <- paste0(path2data, data_file)
+  file <- paste0(path2data, CRF_file)
   sheets <- file |>
     excel_sheets() |> 
     head(-1)
   
-  data60HN2 <- sheets |> 
+  CRF <- sheets |> 
     map(read_excel, path = file) |> 
     setNames(sheets) |> 
     map(~ .x |>  # de-duplication of records
@@ -131,95 +160,190 @@ if (file_exists("data60HN.rds")) {
                          first()) |> 
           ungroup())
 
-  saveRDS2(data60HN, "data60HN.rds")
+  saveRDS2(CRF, "CRF.rds")
 }
 ```
 
-
-## Durations of stay:
+Admission and discharge dates and times:
 
 ```{r}
-data60HN$SCR |> 
-  mutate(SPEC_ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION,
-                                            SPEC_TIME_ADMISSION)),
-         SPEC_DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE,
-                                            SPEC_TIME_DISCHARGE))) |> 
+(dates <- CRF$SCR |> 
+  select(USUBJID, SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION,
+                  SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE) |> 
+  na.exclude() |> 
+  mutate(ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION)),
+         DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE))) |> 
   select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
-         - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
+         - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE))
 ```
 
-## Rectal swabs
+
+## MALDI-TOF data
+
+Reading the MALDI-TOF data:
 
 ```{r}
-rectal_file <- paste0(path2data, "Rectalswab_result_2000patient_WHONET_MaldiTOF.xlsx")
+(MALDITOF <- path2data |>
+  paste0(MALDITOF_file) |>
+  read_excel() |> 
+  select(USUBJID, SampleSchedule, Identification_MALDITOF))
 ```
 
-```{r}
-whonet <- read_excel(rectal_file, "whonet_all")
-```
 
-```{r}
-table(whonet$`Presence of colonies within zone`)
-table(whonet$`Number of colony types`)
-```
+## *K. pneumoniae*
 
-## MALDI-TOF
+### Preparing the data
 
-```{r}
-library(magrittr)
-library(tidyr)
-```
+Generating the presence/absence of *K. pneumoniae*:
 
-```{r}
-malditof <- read_excel(paste0(path2data,
-                              "60HN_LAB_ID_20251014_merged_Blue and",
-                              " pink_confirmed by Maldi-TOF.xlsx")) |> 
-  select(USUBJID, SampleSchedule, Identification_MALDITOF)
-```
-
-```{r}
-malditof |> 
-  pull(USUBJID) |> 
-  table() |> 
-  table()
-```
-
-```{r}
-malditof |> 
-  pull(USUBJID) |> 
-  table() |> 
-  is_greater_than(2) |> 
-  which()
-```
-
-```{r}
-malditof |> 
+```{r eval = FALSE}
+K_pneumoniae_raw <- MALDITOF |> 
   group_by(USUBJID, SampleSchedule) |> 
   group_modify(~ col2listcol(.x, "Identification_MALDITOF")) |> 
-  ungroup()
+  ungroup() |> 
+  mutate(Kp = map_lgl(Identification_MALDITOF, ~ "Klebsiella pneumoniae" %in% .x)) |> 
+  select(- Identification_MALDITOF) |> 
+  arrange(USUBJID, SampleSchedule)
 ```
 
+```{r include = FALSE, warning = FALSE}
+if (file_exists("K_pneumoniae_raw.rds")) {
+  K_pneumoniae_raw <- readRDS2("K_pneumoniae_raw.rds")
+} else {
+  K_pneumoniae_raw <- MALDITOF |> 
+    group_by(USUBJID, SampleSchedule) |> 
+    group_modify(~ col2listcol(.x, "Identification_MALDITOF")) |> 
+    ungroup() |> 
+    mutate(Kp = map_lgl(Identification_MALDITOF, ~ "Klebsiella pneumoniae" %in% .x)) |> 
+    select(- Identification_MALDITOF) |> 
+    arrange(USUBJID, SampleSchedule)
+  saveRDS2(K_pneumoniae_raw, "K_pneumoniae_raw.rds")
+}
+```
 
-
-
-
-
-
-
+Which gives:
 
 ```{r}
-malditof |> 
-  pull(SampleSchedule) |> 
+K_pneumoniae_raw
+```
+
+Not all the patients have both `ADMISSION` and `DISCHARGE`:
+
+```{r}
+K_pneumoniae_raw |> 
+  pull(USUBJID) |> 
+  table() |> 
   table()
 ```
 
+The IDs of the patients who do have both `ADMISSION` and `DISCHARGE`:
+
 ```{r}
-malditof |> 
-  pull(Identification_MALDITOF) |> 
-  table()
+id_with_2obs <- K_pneumoniae_raw |> 
+  pull(USUBJID) |> 
+  table() |> 
+  is_greater_than(1) |> 
+  which() |> 
+  names()
 ```
 
-```{r}
+Selecting the patients who do have both `ADMISSION` and `DISCHARGE`:
 
+```{r}
+K_pneumoniae <- filter(K_pneumoniae_raw, USUBJID %in% id_with_2obs)
+```
+
+Making the dataset for the multistate modelling:
+
+```{r}
+(Kp_msm <- dates |> 
+  mutate(DISCHARGE = as.numeric(DISCHARGE - ADMISSION) / (24 * 60),
+         ADMISSION = 0) |> 
+  pivot_longer(- USUBJID, names_to = "SampleSchedule", values_to = "days") |> 
+  left_join(x = K_pneumoniae, y = _, c("USUBJID", "SampleSchedule")) |> 
+  mutate(state = Kp + 1,
+         days = map_dbl(days, ~ max(.x, 0))))
+```
+
+### Multi-state modelling
+
+Defining the structure of the $Q$ matrix:
+
+```{r}
+Q <- rbind(c(0, 1),
+           c(1, 0))
+```
+
+Initial values of the $Q$ matrix:
+
+```{r}
+(Q_crude <- crudeinits.msm(state ~ days, USUBJID, Q, Kp_msm))
+```
+
+Fitting a simple model without any covariate:
+
+```{r}
+(Kp_msm_fit <- msm(state ~ days, USUBJID, Kp_msm, Q))
+```
+
+Estimated transition intensity $Q$ matrix:
+
+```{r}
+qmatrix.msm(Kp_msm_fit)
+```
+
+Estimated transition probability $P$ matrix per day:
+
+```{r}
+pmatrix.msm(Kp_msm_fit)
+```
+
+Estimated mean sojourn times in each transient state:
+
+```{r}
+sojourn.msm(Kp_msm_fit)
+```
+
+Log-likelihood of the model:
+
+```{r}
+logLik(Kp_msm_fit)
+```
+
+
+#### Bootstrapped CIs
+
+Bootstrapping $Q$ estimates (1000 saamples):
+
+```{r eval = FALSE}
+q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000)
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("q_list.rds")) {
+  q_list <- readRDS2("q_list.rds")
+} else {
+q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates)
+saveRDS2(q_list, "q_list.rds")
+}
+```
+
+Reformating the output into an array of dimension 2, 2, and 1000 (i.e. 2 states and
+1000 bootstrap samples):
+
+```{r}
+q_array <- array(unlist(q_list), dim = c(2, 2, 1000))
+```
+
+The bootstrap estimate of the standard deviation:
+
+```{r}
+apply(q_array, 1:2, sd)
+```
+
+The bootstrap estimate of the 95% confidence interval:
+
+```{r}
+apply(q_array, 1:2, function(x) quantile(x, c(.025, .975)))
 ```
 
