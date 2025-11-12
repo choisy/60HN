@@ -189,13 +189,13 @@ window.Quarto = {
 </section>
 <section id="functions" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="functions"><span class="header-section-number">3</span> Functions</h2>
-<p>A function that converts a column <code>col</code> of a data frame <code>x</code> into a list-column (assuming that all the other columns have unique values across rows):</p>
+<p>A function that converts a column <code>col</code> of a data frame <code>x</code> into a list-column (assuming that all the other columns have the same values across rows):</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>col2listcol <span class="ot">&lt;-</span> <span class="cf">function</span>(x, col) {</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  names_x <span class="ot">&lt;-</span> <span class="fu">names</span>(x)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  x[<span class="dv">1</span>, <span class="fu">setdiff</span>(names_x, col)] <span class="sc">|&gt;</span> </span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_cols</span>(<span class="fu">tibble</span>(<span class="at">a =</span> <span class="fu">list</span>(x[[col]]))) <span class="sc">|&gt;</span> </span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">setNames</span>(names_x)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  x <span class="sc">|&gt;</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span> {{ col }}) <span class="sc">|&gt;</span> </span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">head</span>(<span class="dv">1</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_cols</span>(<span class="fu">tibble</span>(<span class="st">"{{col}}"</span> <span class="sc">:</span><span class="er">=</span> <span class="fu">list</span>(<span class="fu">pull</span>(x, {{ col }}))))</span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
@@ -219,7 +219,7 @@ window.Quarto = {
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">first</span>()) <span class="sc">|&gt;</span> </span>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>        <span class="fu">ungroup</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Admission and discharge dates and times:</p>
+<p>The dates of samples collection at admission and discharge:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(dates <span class="ot">&lt;-</span> CRF<span class="sc">$</span>SCR <span class="sc">|&gt;</span> </span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(USUBJID, SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION,</span>
@@ -275,44 +275,51 @@ window.Quarto = {
 </section>
 <section id="k.-pneumoniae" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="k.-pneumoniae"><span class="header-section-number">6</span> <em>K. pneumoniae</em></h2>
+<p>A function that generates the presence/absence data from the output <code>x</code> of the MALDITOF where <code>id</code> is the column of <code>x</code> that contains the patient ID, <code>time_point</code> is the column of <code>x</code> that contains the time point of the sample (e.g.&nbsp;<code>ADMISSION</code> or <code>DISCHARGE</code>), <code>identification</code> is the column of <code>x</code> that contains the bacteria identified by the MALDITOF and <code>bacteria</code> is a vector of characters that contains the names of the bacteria that we want to test the presence of.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>presence_abscence <span class="ot">&lt;-</span> <span class="cf">function</span>(x, id, time_point, identification, bacteria) {</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  x <span class="sc">|&gt;</span> </span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>({{ id }}, {{ time_point }}) <span class="sc">|&gt;</span> </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_modify</span>(<span class="sc">~</span> <span class="fu">col2listcol</span>(.x, {{ identification }})) <span class="sc">|&gt;</span> </span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">state =</span> <span class="fu">map_lgl</span>({{ identification }}, <span class="sc">~</span> <span class="fu">any</span>(bacteria <span class="sc">%in%</span> .x)) <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span> {{ identification }}) <span class="sc">|&gt;</span> </span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>({{ id }}, {{ time_point }})</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 <section id="preparing-the-data" class="level3" data-number="6.1">
 <h3 data-number="6.1" class="anchored" data-anchor-id="preparing-the-data"><span class="header-section-number">6.1</span> Preparing the data</h3>
 <p>Generating the presence/absence of <em>K. pneumoniae</em>:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw <span class="ot">&lt;-</span> MALDITOF <span class="sc">|&gt;</span> </span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(USUBJID, SampleSchedule) <span class="sc">|&gt;</span> </span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_modify</span>(<span class="sc">~</span> <span class="fu">col2listcol</span>(.x, <span class="st">"Identification_MALDITOF"</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Kp =</span> <span class="fu">map_lgl</span>(Identification_MALDITOF, <span class="sc">~</span> <span class="st">"Klebsiella pneumoniae"</span> <span class="sc">%in%</span> .x)) <span class="sc">|&gt;</span> </span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span> Identification_MALDITOF) <span class="sc">|&gt;</span> </span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(USUBJID, SampleSchedule)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw <span class="ot">&lt;-</span> <span class="fu">presence_abscence</span>(MALDITOF, USUBJID, SampleSchedule,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                                      Identification_MALDITOF, <span class="st">"Klebsiella pneumoniae"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Which gives:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1,055 × 3
-   USUBJID     SampleSchedule Kp   
-   &lt;chr&gt;       &lt;chr&gt;          &lt;lgl&gt;
- 1 008-1-1-05  ADMISSION      FALSE
- 2 008-1-1-05  DISCHARGE      TRUE 
- 3 008-1-1-07  ADMISSION      FALSE
- 4 008-1-1-07  DISCHARGE      FALSE
- 5 008-1-1-08  ADMISSION      FALSE
- 6 008-1-1-08  DISCHARGE      FALSE
- 7 008-1-1-100 DISCHARGE      FALSE
- 8 008-1-1-14  ADMISSION      FALSE
- 9 008-1-1-14  DISCHARGE      FALSE
-10 008-1-1-15  DISCHARGE      FALSE
+   USUBJID     SampleSchedule state
+   &lt;chr&gt;       &lt;chr&gt;          &lt;dbl&gt;
+ 1 008-1-1-05  ADMISSION          1
+ 2 008-1-1-05  DISCHARGE          2
+ 3 008-1-1-07  ADMISSION          1
+ 4 008-1-1-07  DISCHARGE          1
+ 5 008-1-1-08  ADMISSION          1
+ 6 008-1-1-08  DISCHARGE          1
+ 7 008-1-1-100 DISCHARGE          1
+ 8 008-1-1-14  ADMISSION          1
+ 9 008-1-1-14  DISCHARGE          1
+10 008-1-1-15  DISCHARGE          1
 # ℹ 1,045 more rows</code></pre>
 </div>
 </div>
 <p>Not all the patients have both <code>ADMISSION</code> and <code>DISCHARGE</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw <span class="sc">|&gt;</span> </span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID) <span class="sc">|&gt;</span> </span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae_raw <span class="sc">|&gt;</span> </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID) <span class="sc">|&gt;</span> </span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
   1   2 
@@ -321,40 +328,39 @@ window.Quarto = {
 </div>
 <p>The IDs of the patients who do have both <code>ADMISSION</code> and <code>DISCHARGE</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>id_with_2obs <span class="ot">&lt;-</span> K_pneumoniae_raw <span class="sc">|&gt;</span> </span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID) <span class="sc">|&gt;</span> </span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">is_greater_than</span>(<span class="dv">1</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">which</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>id_with_2obs <span class="ot">&lt;-</span> K_pneumoniae_raw <span class="sc">|&gt;</span> </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(USUBJID) <span class="sc">|&gt;</span> </span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">table</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">is_greater_than</span>(<span class="dv">1</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">which</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Selecting the patients who do have both <code>ADMISSION</code> and <code>DISCHARGE</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae <span class="ot">&lt;-</span> <span class="fu">filter</span>(K_pneumoniae_raw, USUBJID <span class="sc">%in%</span> id_with_2obs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>K_pneumoniae <span class="ot">&lt;-</span> <span class="fu">filter</span>(K_pneumoniae_raw, USUBJID <span class="sc">%in%</span> id_with_2obs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Making the dataset for the multistate modelling:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>(Kp_msm <span class="ot">&lt;-</span> dates <span class="sc">|&gt;</span> </span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">DISCHARGE =</span> <span class="fu">as.numeric</span>(DISCHARGE <span class="sc">-</span> ADMISSION) <span class="sc">/</span> (<span class="dv">24</span> <span class="sc">*</span> <span class="dv">60</span>),</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">ADMISSION =</span> <span class="dv">0</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span> USUBJID, <span class="at">names_to =</span> <span class="st">"SampleSchedule"</span>, <span class="at">values_to =</span> <span class="st">"days"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="at">x =</span> K_pneumoniae, <span class="at">y =</span> _, <span class="fu">c</span>(<span class="st">"USUBJID"</span>, <span class="st">"SampleSchedule"</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">state =</span> Kp <span class="sc">+</span> <span class="dv">1</span>,</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">days =</span> <span class="fu">map_dbl</span>(days, <span class="sc">~</span> <span class="fu">max</span>(.x, <span class="dv">0</span>))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>(Kp_msm <span class="ot">&lt;-</span> dates <span class="sc">|&gt;</span> </span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">DISCHARGE =</span> <span class="fu">as.numeric</span>(DISCHARGE <span class="sc">-</span> ADMISSION) <span class="sc">/</span> (<span class="dv">24</span> <span class="sc">*</span> <span class="dv">60</span>),</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">ADMISSION =</span> <span class="dv">0</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span> USUBJID, <span class="at">names_to =</span> <span class="st">"SampleSchedule"</span>, <span class="at">values_to =</span> <span class="st">"days"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="at">x =</span> K_pneumoniae, <span class="at">y =</span> _, <span class="fu">c</span>(<span class="st">"USUBJID"</span>, <span class="st">"SampleSchedule"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">days =</span> <span class="fu">map_dbl</span>(days, <span class="sc">~</span> <span class="fu">max</span>(.x, <span class="dv">0</span>))))                  <span class="do">### THIS SHOULD NOT BE NEEDED ANYMORE</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 492 × 5
-   USUBJID    SampleSchedule Kp     days state
-   &lt;chr&gt;      &lt;chr&gt;          &lt;lgl&gt; &lt;dbl&gt; &lt;dbl&gt;
- 1 008-1-1-05 ADMISSION      FALSE  0        1
- 2 008-1-1-05 DISCHARGE      TRUE  16.1      2
- 3 008-1-1-07 ADMISSION      FALSE  0        1
- 4 008-1-1-07 DISCHARGE      FALSE  1.83     1
- 5 008-1-1-08 ADMISSION      FALSE  0        1
- 6 008-1-1-08 DISCHARGE      FALSE  4.82     1
- 7 008-1-1-14 ADMISSION      FALSE  0        1
- 8 008-1-1-14 DISCHARGE      FALSE 11.8      1
- 9 008-1-1-24 ADMISSION      TRUE   0        2
-10 008-1-1-24 DISCHARGE      TRUE   6.86     2
+<pre><code># A tibble: 492 × 4
+   USUBJID    SampleSchedule state  days
+   &lt;chr&gt;      &lt;chr&gt;          &lt;dbl&gt; &lt;dbl&gt;
+ 1 008-1-1-05 ADMISSION          1  0   
+ 2 008-1-1-05 DISCHARGE          2 16.1 
+ 3 008-1-1-07 ADMISSION          1  0   
+ 4 008-1-1-07 DISCHARGE          1  1.83
+ 5 008-1-1-08 ADMISSION          1  0   
+ 6 008-1-1-08 DISCHARGE          1  4.82
+ 7 008-1-1-14 ADMISSION          1  0   
+ 8 008-1-1-14 DISCHARGE          1 11.8 
+ 9 008-1-1-24 ADMISSION          2  0   
+10 008-1-1-24 DISCHARGE          2  6.86
 # ℹ 482 more rows</code></pre>
 </div>
 </div>
@@ -363,12 +369,12 @@ window.Quarto = {
 <h3 data-number="6.2" class="anchored" data-anchor-id="multi-state-modelling"><span class="header-section-number">6.2</span> Multi-state modelling</h3>
 <p>Defining the structure of the <span class="math inline">\(Q\)</span> matrix:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>Q <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>           <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>Q <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>           <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Initial values of the <span class="math inline">\(Q\)</span> matrix:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>(Q_crude <span class="ot">&lt;-</span> <span class="fu">crudeinits.msm</span>(state <span class="sc">~</span> days, USUBJID, Q, Kp_msm))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>(Q_crude <span class="ot">&lt;-</span> <span class="fu">crudeinits.msm</span>(state <span class="sc">~</span> days, USUBJID, Q, Kp_msm))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            [,1]        [,2]
 [1,] -0.01556508  0.01556508
@@ -377,7 +383,7 @@ window.Quarto = {
 </div>
 <p>Fitting a simple model without any covariate:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>(Kp_msm_fit <span class="ot">&lt;-</span> <span class="fu">msm</span>(state <span class="sc">~</span> days, USUBJID, Kp_msm, Q))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>(Kp_msm_fit <span class="ot">&lt;-</span> <span class="fu">msm</span>(state <span class="sc">~</span> days, USUBJID, Kp_msm, Q))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -397,7 +403,7 @@ State 2 - State 2 -0.08722 (-0.15448,-0.04924)
 </div>
 <p>Estimated transition intensity <span class="math inline">\(Q\)</span> matrix:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">qmatrix.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">qmatrix.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>        State 1                      State 2                     
 State 1 -0.02257 (-0.03813,-0.01336)  0.02257 ( 0.01336, 0.03813)
@@ -406,7 +412,7 @@ State 2  0.08722 ( 0.04924, 0.15448) -0.08722 (-0.15448,-0.04924)</code></pre>
 </div>
 <p>Estimated transition probability <span class="math inline">\(P\)</span> matrix per day:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pmatrix.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pmatrix.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           State 1    State 2
 State 1 0.97862403 0.02137597
@@ -415,7 +421,7 @@ State 2 0.08260318 0.91739682</code></pre>
 </div>
 <p>Estimated mean sojourn times in each transient state:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sojourn.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sojourn.msm</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>        estimates        SE         L        U
 State 1  44.30485 11.852179 26.226644 74.84449
@@ -424,7 +430,7 @@ State 2  11.46517  3.343953  6.473174 20.30689</code></pre>
 </div>
 <p>Log-likelihood of the model:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(Kp_msm_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>'log Lik.' -83.79048 (df=2)</code></pre>
 </div>
@@ -433,15 +439,15 @@ State 2  11.46517  3.343953  6.473174 20.30689</code></pre>
 <h4 data-number="6.2.1" class="anchored" data-anchor-id="bootstrapped-cis"><span class="header-section-number">6.2.1</span> Bootstrapped CIs</h4>
 <p>Bootstrapping <span class="math inline">\(Q\)</span> estimates (1000 saamples):</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>q_list <span class="ot">&lt;-</span> <span class="fu">boot.msm</span>(Kp_msm_fit, <span class="cf">function</span>(x) <span class="fu">qmatrix.msm</span>(x)<span class="sc">$</span>estimates, <span class="dv">1000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>q_list <span class="ot">&lt;-</span> <span class="fu">boot.msm</span>(Kp_msm_fit, <span class="cf">function</span>(x) <span class="fu">qmatrix.msm</span>(x)<span class="sc">$</span>estimates, <span class="dv">1000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Reformating the output into an array of dimension 2, 2, and 1000 (i.e.&nbsp;2 states and 1000 bootstrap samples):</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>q_array <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="fu">unlist</span>(q_list), <span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1000</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>q_array <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="fu">unlist</span>(q_list), <span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1000</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The bootstrap estimate of the standard deviation:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(q_array, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, sd)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(q_array, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, sd)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            [,1]        [,2]
 [1,] 0.006710856 0.006710856
@@ -450,7 +456,7 @@ State 2  11.46517  3.343953  6.473174 20.30689</code></pre>
 </div>
 <p>The bootstrap estimate of the 95% confidence interval:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(q_array, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">quantile</span>(x, <span class="fu">c</span>(.<span class="dv">025</span>, .<span class="dv">975</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(q_array, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">quantile</span>(x, <span class="fu">c</span>(.<span class="dv">025</span>, .<span class="dv">975</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>, , 1
 

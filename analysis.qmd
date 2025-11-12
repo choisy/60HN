@@ -107,14 +107,14 @@ library(msm)
 ## Functions
 
 A function that converts a column `col` of a data frame `x` into a list-column
-(assuming that all the other columns have unique values across rows):
+(assuming that all the other columns have the same values across rows):
 
 ```{r}
 col2listcol <- function(x, col) {
-  names_x <- names(x)
-  x[1, setdiff(names_x, col)] |> 
-    bind_cols(tibble(a = list(x[[col]]))) |> 
-    setNames(names_x)
+  x |> 
+    select(- {{ col }}) |> 
+    head(1) |> 
+    bind_cols(tibble("{{col}}" := list(pull(x, {{ col }}))))
 }
 ```
 
@@ -164,7 +164,7 @@ if (file_exists("CRF.rds")) {
 }
 ```
 
-Admission and discharge dates and times:
+The dates of samples collection at admission and discharge:
 
 ```{r}
 (dates <- CRF$SCR |> 
@@ -192,31 +192,42 @@ Reading the MALDI-TOF data:
 
 ## *K. pneumoniae*
 
+A function that generates the presence/absence data from the output `x` of the MALDITOF
+where `id` is the column of `x` that contains the patient ID, `time_point` is the
+column of `x` that contains the time point of the sample (e.g. `ADMISSION` or
+`DISCHARGE`), `identification` is the column of `x` that contains the bacteria
+identified by the MALDITOF and `bacteria` is a vector of characters that contains the
+names of the bacteria that we want to test the presence of.
+
+```{r}
+presence_abscence <- function(x, id, time_point, identification, bacteria) {
+  x |> 
+    group_by({{ id }}, {{ time_point }}) |> 
+    group_modify(~ col2listcol(.x, {{ identification }})) |> 
+    ungroup() |> 
+    mutate(state = map_lgl({{ identification }}, ~ any(bacteria %in% .x)) + 1) |> 
+    select(- {{ identification }}) |> 
+    arrange({{ id }}, {{ time_point }})
+}
+```
+
+
 ### Preparing the data
 
 Generating the presence/absence of *K. pneumoniae*:
 
 ```{r eval = FALSE}
-K_pneumoniae_raw <- MALDITOF |> 
-  group_by(USUBJID, SampleSchedule) |> 
-  group_modify(~ col2listcol(.x, "Identification_MALDITOF")) |> 
-  ungroup() |> 
-  mutate(Kp = map_lgl(Identification_MALDITOF, ~ "Klebsiella pneumoniae" %in% .x)) |> 
-  select(- Identification_MALDITOF) |> 
-  arrange(USUBJID, SampleSchedule)
+K_pneumoniae_raw <- presence_abscence(MALDITOF, USUBJID, SampleSchedule,
+                                      Identification_MALDITOF, "Klebsiella pneumoniae")
 ```
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("K_pneumoniae_raw.rds")) {
   K_pneumoniae_raw <- readRDS2("K_pneumoniae_raw.rds")
 } else {
-  K_pneumoniae_raw <- MALDITOF |> 
-    group_by(USUBJID, SampleSchedule) |> 
-    group_modify(~ col2listcol(.x, "Identification_MALDITOF")) |> 
-    ungroup() |> 
-    mutate(Kp = map_lgl(Identification_MALDITOF, ~ "Klebsiella pneumoniae" %in% .x)) |> 
-    select(- Identification_MALDITOF) |> 
-    arrange(USUBJID, SampleSchedule)
+  K_pneumoniae_raw <- presence_abscence(MALDITOF, USUBJID, SampleSchedule,
+                                        Identification_MALDITOF,
+                                        "Klebsiella pneumoniae")
   saveRDS2(K_pneumoniae_raw, "K_pneumoniae_raw.rds")
 }
 ```
@@ -261,8 +272,7 @@ Making the dataset for the multistate modelling:
          ADMISSION = 0) |> 
   pivot_longer(- USUBJID, names_to = "SampleSchedule", values_to = "days") |> 
   left_join(x = K_pneumoniae, y = _, c("USUBJID", "SampleSchedule")) |> 
-  mutate(state = Kp + 1,
-         days = map_dbl(days, ~ max(.x, 0))))
+  mutate(days = map_dbl(days, ~ max(.x, 0))))                  ### THIS SHOULD NOT BE NEEDED ANYMORE
 ```
 
 ### Multi-state modelling
