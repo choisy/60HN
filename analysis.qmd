@@ -65,8 +65,12 @@ saveRDS2 <- function(object, file) saveRDS(object, make_path(file))
 The name of the CRF data file:
 
 ```{r}
-CRF_file <- "29-10-2025-_60HN_PATIENT_P1_Data.xlsx"
+CRF_file <- "29-10-2025-_60HN_PATIENT_P1_Data_corrected_by_Marc.xlsx"
 ```
+
+<!-- 
+discharge sample collection date corrected for 010-1-1-63, 160-1-1-63, 160-1-1-87 and 008-1-1-53
+-->
 
 The name of the MALDI-TOF data file:
 
@@ -81,7 +85,8 @@ MALDITOF_file <- paste0("60HN_LAB_ID_20251014_merged_Blue and",
 Required packages:
 
 ```{r}
-required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm")
+required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm",
+              "rlang")
 ```
 
 Installing those that are not installed yet:
@@ -101,10 +106,11 @@ library(lubridate)
 library(magrittr)
 library(tidyr)
 library(msm)
+library(rlang)
 ```
 
 
-## Functions
+## General functions
 
 A function that converts a column `col` of a data frame `x` into a list-column
 (assuming that all the other columns have the same values across rows):
@@ -190,7 +196,7 @@ Reading the MALDI-TOF data:
 ```
 
 
-## *K. pneumoniae*
+## Specific functions
 
 A function that generates the presence/absence data from the output `x` of the MALDITOF
 where `id` is the column of `x` that contains the patient ID, `time_point` is the
@@ -211,6 +217,50 @@ presence_abscence <- function(x, id, time_point, identification, bacteria) {
 }
 ```
 
+A function that selects patients from `x` who have samples from at least 2 time points:
+
+```{r}
+select2time_points <- function(x, id) {
+  id_with_2obs <- x |> 
+    pull({{ id }}) |> 
+    table() |> 
+    is_greater_than(1) |> 
+    which() |> 
+    names()
+  
+  filter(x, {{ id }} %in% id_with_2obs)
+}
+```
+
+where `id` is the column of `x` that contains the patients IDs. A function that
+combines state and time data:
+
+```{r}
+state_time <- function(state, time, id, admission, discharge, time_point) {
+  time |> 
+    mutate("{{discharge}}" := as.numeric({{ discharge }} - {{ admission }}) / 1440,
+           "{{admission}}" := 0) |> 
+    pivot_longer(- {{ id }},
+                 names_to = as_name(enquo(time_point)), values_to = "days") |>
+    left_join(x = {{ state }}, y = _,
+              c(as_name(enquo(id)), as_name(enquo(time_point))))
+}
+```
+
+The following function puts the 3 above functions together:
+
+```{r}
+msm_data <- function(x, y, id, time_point, identification, bacteria,
+                     admission, discharge) {
+  x |>
+    presence_abscence({{ id }}, {{ time_point }}, {{ identification }}, bacteria) |> 
+    select2time_points({{ id }}) |> 
+    state_time(y, {{ id }}, {{ admission }}, {{ discharge }}, {{ time_point }})
+}
+```
+
+
+## *K. pneumoniae*
 
 ### Preparing the data
 
@@ -247,33 +297,42 @@ K_pneumoniae_raw |>
   table()
 ```
 
-The IDs of the patients who do have both `ADMISSION` and `DISCHARGE`:
+Selecting the patients that have samples from at least 2 time points:
 
 ```{r}
-id_with_2obs <- K_pneumoniae_raw |> 
-  pull(USUBJID) |> 
-  table() |> 
-  is_greater_than(1) |> 
-  which() |> 
-  names()
-```
-
-Selecting the patients who do have both `ADMISSION` and `DISCHARGE`:
-
-```{r}
-K_pneumoniae <- filter(K_pneumoniae_raw, USUBJID %in% id_with_2obs)
+K_pneumoniae <- select2time_points(K_pneumoniae_raw, USUBJID)
 ```
 
 Making the dataset for the multistate modelling:
 
 ```{r}
-(Kp_msm <- dates |> 
-  mutate(DISCHARGE = as.numeric(DISCHARGE - ADMISSION) / (24 * 60),
-         ADMISSION = 0) |> 
-  pivot_longer(- USUBJID, names_to = "SampleSchedule", values_to = "days") |> 
-  left_join(x = K_pneumoniae, y = _, c("USUBJID", "SampleSchedule")) |> 
-  mutate(days = map_dbl(days, ~ max(.x, 0))))                  ### THIS SHOULD NOT BE NEEDED ANYMORE
+(Kp_msm <- state_time(K_pneumoniae, dates, USUBJID,
+                      ADMISSION, DISCHARGE, SampleSchedule))
 ```
+
+Alternatively, we can do all at once with this function:
+
+```{r eval = FALSE}
+Kp_msm <- msm_data(MALDITOF, dates, USUBJID, SampleSchedule, Identification_MALDITOF,
+                   "Klebsiella pneumoniae", ADMISSION, DISCHARGE)
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("Kp_msm.rds")) {
+  Kp_msm <- readRDS2("Kp_msm.rds")
+} else {
+  Kp_msm <- msm_data(MALDITOF, dates, USUBJID, SampleSchedule, Identification_MALDITOF,
+                     "Klebsiella pneumoniae", ADMISSION, DISCHARGE)
+  saveRDS2(Kp_msm, "Kp_msm.rds")
+}
+```
+
+which gives:
+
+```{r}
+Kp_msm
+```
+
 
 ### Multi-state modelling
 
@@ -333,8 +392,8 @@ q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000)
 if (file_exists("q_list.rds")) {
   q_list <- readRDS2("q_list.rds")
 } else {
-q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates)
-saveRDS2(q_list, "q_list.rds")
+  q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates)
+  saveRDS2(q_list, "q_list.rds")
 }
 ```
 
