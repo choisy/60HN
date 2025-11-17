@@ -124,6 +124,12 @@ col2listcol <- function(x, col) {
 }
 ```
 
+A tuning of the `msm()` function for a bi-state bi-directional case:
+
+```{r}
+bsm <- function(...) msm(..., qmatrix = matrix(c(0:1, 1:0), 2))
+```
+
 
 ## CRF data
 
@@ -353,6 +359,36 @@ Fitting a simple model without any covariate:
 
 ```{r}
 (Kp_msm_fit <- msm(state ~ days, USUBJID, Kp_msm, Q))
+```
+
+Or we call simply do:
+
+```{r}
+bsm <- function(...) msm(..., qmatrix = matrix(c(0:1, 1:0), 2))
+
+bsm <- function(formula, subject, data, ...) {
+  args <- c(list(formula = formula,
+                 subject = substitute(subject),
+                 data    = data,
+                 qmatrix = matrix(c(0:1, 1:0), 2)),
+            list(...))
+  do.call(msm::msm, args)
+}
+
+bsm <- function(formula, subject, data, ...) {
+  do.call(msm::msm,
+          c(list(formula = formula,
+                 subject = substitute(subject),
+                 data    = data,
+                 qmatrix = matrix(c(0:1, 1:0), 2)),
+            list(...)))
+}
+bsm(state ~ days, USUBJID, Kp_msm)
+
+Q
+aaa <- msm(state ~ days, USUBJID, Kp_msm, qmatrix = Q)
+
+class(aaa$call)
 ```
 
 Estimated transition intensity $Q$ matrix:
