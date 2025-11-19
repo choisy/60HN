@@ -150,6 +150,19 @@ boot_msm <- function(msm_fit, f = qmatrix.msm, N = 1000) {
 }
 ```
 
+A function that generate statistic `f` estimates from bootstrap samples `boot_stat`
+outputed by `boot_msm()`:
+
+```{r}
+boot_stat <- function(boots_samples, f = sd) {
+  output <- apply(boots_samples, 1:2, f)
+  mat_names <- paste("State", 1:nrow(output))
+  colnames(output) <-  mat_names
+  rownames(output) <-  mat_names
+  output
+}
+```
+
 
 ## CRF data
 
@@ -457,9 +470,17 @@ The bootstrap estimate of the standard deviation:
 apply(q_array, 1:2, sd)
 ```
 
+Or, equivalently, in a formatted output:
+
+```{r}
+boot_stat(q_array)
+```
+
 The bootstrap estimate of the 95% confidence interval:
 
 ```{r}
 apply(q_array, 1:2, function(x) quantile(x, c(.025, .975)))
 ```
+
+
 
