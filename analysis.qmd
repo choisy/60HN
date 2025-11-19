@@ -150,7 +150,7 @@ boot_msm <- function(msm_fit, f = qmatrix.msm, N = 1000) {
 }
 ```
 
-A function that generate statistic `f` estimates from bootstrap samples `boot_stat`
+A function that generates statistic `f` estimates from bootstrap samples `boot_samples`
 outputed by `boot_msm()`:
 
 ```{r}
@@ -160,6 +160,19 @@ boot_stat <- function(boots_samples, f = sd) {
   colnames(output) <-  mat_names
   rownames(output) <-  mat_names
   output
+}
+```
+
+A function that generates a `ci`% confidence interval from bootstrap samples
+`boot_samples` outputed by `boot_msm()`:
+
+```{r}
+boot_ci <- function(boots_samples, ci = .95) {
+  ci <- (1 - ci) / 2
+  output <- apply(boots_samples, 1:2, function(x) quantile(x, c(ci, 1 - ci)))
+  mat_names <- paste("State", 1:ncol(output))
+  dimnames(output) <- list(rownames(output[, , 1]), mat_names, mat_names)
+  aperm(output, c(1, 3, 2))
 }
 ```
 
@@ -476,11 +489,30 @@ Or, equivalently, in a formatted output:
 boot_stat(q_array)
 ```
 
+And with the mean:
+
+```{r}
+boot_stat(q_array, mean)
+```
+
+Or the median:
+
+```{r}
+boot_stat(q_array, median)
+```
+
 The bootstrap estimate of the 95% confidence interval:
 
 ```{r}
-apply(q_array, 1:2, function(x) quantile(x, c(.025, .975)))
+q_array |>
+  apply(1:2, function(x) quantile(x, c(.025, .975))) |> 
+  aperm(c(1, 3, 2))
 ```
 
+Or, equivalently, in a formatted output:
+
+```{r}
+boot_ci(q_array)
+```
 
 
