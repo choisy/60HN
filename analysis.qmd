@@ -137,6 +137,19 @@ bsm <- function(formula, subject, data, ...) {
 }
 ```
 
+A function that bootstraps estimates of the fitted multistate model `msm_fit` where `f`
+is the function that generates the estimates and `N` is the number of bootstrap
+repetitions:
+
+```{r}
+boot_msm <- function(msm_fit, f = qmatrix.msm, N = 1000) {
+  msm_fit |>
+    boot.msm(function(x) f(x)$estimates, N) |> 
+    unlist() |> 
+    array(dim = c(dim(msm_fit$Qmatrices$baseline), N))
+}
+```
+
 
 ## CRF data
 
@@ -401,7 +414,7 @@ logLik(Kp_msm_fit)
 
 #### Bootstrapped CIs
 
-Bootstrapping $Q$ estimates (1000 saamples):
+Bootstrapping $Q$ estimates (1000 samples):
 
 ```{r eval = FALSE}
 q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000)
@@ -421,6 +434,21 @@ Reformating the output into an array of dimension 2, 2, and 1000 (i.e. 2 states 
 
 ```{r}
 q_array <- array(unlist(q_list), dim = c(2, 2, 1000))
+```
+
+Or we can simply do instead of the above two successive command lines:
+
+```{r eval = FALSE}
+q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000)
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("q_array.rds")) {
+  q_array <- readRDS2("q_array.rds")
+} else {
+  q_array <- boot_msm(msm_fit, qmatrix.msm, 1000)
+  saveRDS2(q_array, "q_array.rds")
+}
 ```
 
 The bootstrap estimate of the standard deviation:
