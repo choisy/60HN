@@ -48,7 +48,7 @@ knitr::opts_chunk$set(margin1    = TRUE,
 The folder that contains the data files:
 
 ```{r}
-path2data <- paste0("/Users/MarcChoisy/Library/CloudStorage/",
+path2data <- paste0("/Users/", Sys.getenv("USER"), "/Library/CloudStorage/",
                     "OneDrive-OxfordUniversityClinicalResearchUnit/",
                     "GitHub/choisy/60HN/")
 ```
@@ -127,7 +127,14 @@ col2listcol <- function(x, col) {
 A tuning of the `msm()` function for a bi-state bi-directional case:
 
 ```{r}
-bsm <- function(...) msm(..., qmatrix = matrix(c(0:1, 1:0), 2))
+bsm <- function(formula, subject, data, ...) {
+  output <- do.call(msm::msm, c(list(formula = formula,
+                                     subject = substitute(subject),
+                                     data    = data,
+                                     qmatrix = matrix(c(0:1, 1:0), 2)), list(...)))
+  output$call <- match.call()
+  output
+}
 ```
 
 
@@ -364,31 +371,7 @@ Fitting a simple model without any covariate:
 Or we call simply do:
 
 ```{r}
-bsm <- function(...) msm(..., qmatrix = matrix(c(0:1, 1:0), 2))
-
-bsm <- function(formula, subject, data, ...) {
-  args <- c(list(formula = formula,
-                 subject = substitute(subject),
-                 data    = data,
-                 qmatrix = matrix(c(0:1, 1:0), 2)),
-            list(...))
-  do.call(msm::msm, args)
-}
-
-bsm <- function(formula, subject, data, ...) {
-  do.call(msm::msm,
-          c(list(formula = formula,
-                 subject = substitute(subject),
-                 data    = data,
-                 qmatrix = matrix(c(0:1, 1:0), 2)),
-            list(...)))
-}
-bsm(state ~ days, USUBJID, Kp_msm)
-
-Q
-aaa <- msm(state ~ days, USUBJID, Kp_msm, qmatrix = Q)
-
-class(aaa$call)
+(Kp_msm_fit <- bsm(state ~ days, USUBJID, Kp_msm))
 ```
 
 Estimated transition intensity $Q$ matrix:
