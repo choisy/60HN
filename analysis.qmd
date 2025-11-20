@@ -222,6 +222,8 @@ if (file_exists("CRF.rds")) {
 }
 ```
 
+### Samples collection
+
 The dates of samples collection at admission and discharge:
 
 ```{r}
@@ -233,6 +235,87 @@ The dates of samples collection at admission and discharge:
          DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE))) |> 
   select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
          - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE))
+```
+
+### Wards
+
+I just realize that there is one significant factor that would significantly contribute
+the force of infection (colonization) during hospitalization. This is the fact that
+patients from the same clinical ward can transmit CRE between one another. Therefore it
+would be best if the model can include the possibility within-ward transmission versus
+between within-hospital transmission. The ward type variable can identify the patients
+in the same ward or not. I think this should be the first priority to add.
+
+```{r}
+admissions <- CRF$ADM |> 
+  mutate(ADMISSION = as_datetime(paste(ADMISSION_DATE, ADMISSION_TIME))) |> 
+  select(USUBJID, SITEID, ADMISSION, WARD_1, WARD_2, WARD_3)
+```
+
+```{r}
+admissions |> 
+  mutate(ward = WARD_1 + WARD_2 + WARD_3) |> 
+  pull(ward) |> 
+  table()
+```
+
+```{r}
+admissions |> 
+  mutate(ward = WARD_1 + WARD_2 + WARD_3) |> 
+  filter(ward > 1)
+```
+
+There are 12 hospitals:
+
+```{r}
+admissions |> 
+  group_by(SITEID) |> 
+  tally()
+```
+
+Only 5 of them have mixed ward
+
+```{r}
+admissions |> 
+  mutate(ward = WARD_1 + WARD_2 + WARD_3) |> 
+  filter(ward > 1) |> 
+  group_by(SITEID) |> 
+  tally()
+```
+
+```{r eval = FALSE}
+wards <- admissions |> 
+  pivot_longer(starts_with("WARD"), names_to = "ward") |> 
+  filter(value) |> 
+  select(- value) |> 
+  group_by(USUBJID, SITEID, ADMISSION) |> 
+  group_modify(~ col2listcol(.x, ward)) |> 
+  ungroup()
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("wards.rds")) {
+  wards <- readRDS2("wards.rds")
+} else {
+  wards <- admissions |> 
+    pivot_longer(starts_with("WARD"), names_to = "ward") |> 
+    filter(value) |> 
+    select(- value) |> 
+    group_by(USUBJID, SITEID, ADMISSION) |> 
+    group_modify(~ col2listcol(.x, ward)) |> 
+    ungroup()
+  saveRDS2(wards, "wards.rds")
+}
+```
+
+```{r}
+admissions |> 
+  mutate(across(starts_with("WARD"), as.numeric),
+         ward = paste0(WARD_1, WARD_2, WARD_3)) |> 
+  select(-starts_with("WARD", ignore.case = FALSE)) |> 
+  group_by(SITEID, ward) |> 
+  tally() |> 
+  print(n = Inf)
 ```
 
 
