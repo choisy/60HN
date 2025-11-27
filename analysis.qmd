@@ -1,5 +1,5 @@
 ---
-title: "60HN"
+title: "60HN: CRE burden at admission and discharge"
 number-sections: true
 format:
   html:
