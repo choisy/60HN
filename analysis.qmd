@@ -39,7 +39,7 @@ knitr::opts_chunk$set(margin1    = TRUE,
                       fig.retina = 2,
                       fig.align  = "center",
                       fig.height = eps * 5, # default is 5
-                      fig.width  = eps * 7) # default is 7
+                      fig.width  = eps * 7) # default is 7 and maximum possible is 8.3
 ```
 
 
@@ -62,15 +62,18 @@ readRDS2 <- function(x) readRDS(make_path(x))
 saveRDS2 <- function(object, file) saveRDS(object, make_path(file))
 ```
 
+The name of the file that contains the discharge dates of the patients that did not
+provide samples at discharge:
+
+```{r}
+discharge_file <- "60HN - DischargeDate_no_discharge_sample_27Nov25.xlsx"
+```
+
 The name of the CRF data file:
 
 ```{r}
-CRF_file <- "29-10-2025-_60HN_PATIENT_P1_Data_corrected_by_Marc.xlsx"
+CRF_file <- "25-11-2025-_60HN_PATIENT_P1_Data.xls"
 ```
-
-<!-- 
-discharge sample collection date corrected for 010-1-1-63, 160-1-1-63, 160-1-1-87 and 008-1-1-53
--->
 
 The name of the MALDI-TOF data file:
 
@@ -96,21 +99,28 @@ to_install <- required[! required %in% installed.packages()[,"Package"]]
 if (length(to_install)) install.packages(to_install)
 ```
 
-Loading some packages for interactive use:
+Loading the packages for interactive use:
 
 ```{r warning = FALSE, message = FALSE}
-library(readxl)
-library(purrr)
-library(dplyr)
-library(lubridate)
-library(magrittr)
-library(tidyr)
-library(msm)
-library(rlang)
+invisible(sapply(required, library, character.only = TRUE))
 ```
 
 
 ## General functions
+
+A function that pastes a vector of dates and a vector of times both in character format
+and returns a  `dttm` vector:
+
+```{r}
+as_datetime2 <- function(date, time) {
+  as_datetime2_ <- function(date, time) {
+    if (is.na(date)) return(NA)
+    if (is.na(time)) time <- "12:00:00"    # if only time is missing, we fix it to noon
+    as_datetime(paste(date, time))
+  }
+  map2_vec(date, time, as_datetime2_)
+}
+```
 
 A function that converts a column `col` of a data frame `x` into a list-column
 (assuming that all the other columns have the same values across rows):
@@ -122,6 +132,12 @@ col2listcol <- function(x, col) {
     head(1) |> 
     bind_cols(tibble("{{col}}" := list(pull(x, {{ col }}))))
 }
+```
+
+A tuning of the `hist()` function:
+
+```{r}
+hist2 <- function(x, ...) hist(x, floor(min(x)):ceiling(max(x)), ...)
 ```
 
 A tuning of the `msm()` function for a bi-state bi-directional case:
@@ -177,6 +193,19 @@ boot_ci <- function(boots_samples, ci = .95) {
 ```
 
 
+## Discharge dates
+
+Loading the discharge dates for the patients who did not provide any sample at
+discharge:
+
+```{r}
+(discharge_dates <- paste0(path2data, discharge_file) |>
+   read_excel() |> 
+   mutate(across(`Discharge date`, ~ .x + hours(12))) |>  # setting time to noon
+   select(-No, -SiteID, -`Discharge date (2)`))
+```
+
+
 ## CRF data
 
 Reading the data:
@@ -192,11 +221,11 @@ CRF <- sheets |>
   map(read_excel, path = file) |> 
   setNames(sheets) |> 
   map(~ .x |>  # de-duplication of records
-        group_by(USUBJID) |> 
-        group_modify(~ .x |>
-                       arrange(desc(entry)) |> 
-                       first()) |> 
-        ungroup())
+          group_by(USUBJID) |> 
+          group_modify(~ .x |>
+                           arrange(desc(entry)) |> 
+                           first()) |> 
+          ungroup())
 ```
 
 ```{r include = FALSE, warning = FALSE}
@@ -222,20 +251,59 @@ if (file_exists("CRF.rds")) {
 }
 ```
 
-### Samples collection
+### Samples dates
 
 The dates of samples collection at admission and discharge:
 
-```{r}
-(dates <- CRF$SCR |> 
+```{r eval = FALSE}
+dates <- CRF |> 
+  extract2("SCR") |> 
   select(USUBJID, SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION,
                   SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE) |> 
-  na.exclude() |> 
-  mutate(ADMISSION = as_datetime(paste(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION)),
-         DISCHARGE = as_datetime(paste(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE))) |> 
+  mutate(ADMISSION = as_datetime2(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION),
+         DISCHARGE = as_datetime2(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE)) |> 
   select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
-         - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE))
+         - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
 ```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("dates.rds")) {
+  dates <- readRDS2("dates.rds")
+} else {
+  dates <- CRF |> 
+    extract2("SCR") |> 
+    select(USUBJID, SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION,
+                    SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE) |> 
+    mutate(ADMISSION = as_datetime2(SPEC_DATE_ADMISSION, SPEC_TIME_ADMISSION),
+           DISCHARGE = as_datetime2(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE)) |> 
+    select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
+           - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
+  saveRDS2(dates, "dates.rds")
+}
+```
+
+which gives:
+
+```{r}
+dates
+```
+
+The number of missing samples at discharge:
+
+```{r}
+dates |> 
+  filter(is.na(DISCHARGE)) |> 
+  nrow()
+```
+
+Verifying that `DISCHARGE` is after `ADMISSION`:
+
+```{r}
+dates |> 
+  na.exclude() |> 
+  filter(DISCHARGE < ADMISSION)
+```
+
 
 ### Wards
 
@@ -253,16 +321,17 @@ Generating the ward data:
 
 ```{r}
 (wards <- CRF$ADM |> 
-  mutate(across(starts_with("WARD"), as.numeric),
-         ward = paste0(SITEID, WARD_1, WARD_2, WARD_3)) |> 
-  select(USUBJID, SITEID, ward))
+   mutate(across(starts_with("WARD"), as.numeric),
+          ward = paste0(SITEID, WARD_1, WARD_2, WARD_3)) |> 
+   arrange(SITEID) |> 
+   select(USUBJID, ward))
 ```
 
 An overview of the number of patients per wards:
 
 ```{r}
 wards |> 
-  group_by(SITEID, ward) |> 
+  group_by(ward) |> 
   tally() |> 
   print(n = Inf)
 ```
@@ -270,7 +339,7 @@ wards |>
 
 ### Exposure
 
-A function that computes the data for ward:
+A function that computes the data for ward occupancy:
 
 ```{r}
 ward_occupancy <- function(x) {
@@ -283,40 +352,87 @@ ward_occupancy <- function(x) {
 }
 ```
 
-Computing the ward occupancies:
-
-```{r}
-w_occu <- wards |> 
-  select(- SITEID) |> 
-  left_join(dates, "USUBJID") |> 
-  group_by(ward) |> 
-  group_map(~ ward_occupancy(.x), .keep = TRUE)
-```
-
 A function that plots a ward occupancy:
 
 ```{r}
-plot_occ <- function(x) {
+plot_occ <- function(x, y, ...) {
   x |> 
     first() |> 
     mutate(occupancy = 0) |> 
     bind_rows(x) |> 
     with({
-      plot(date, occupancy, type = "s", xlab = NA)
+      plot(date, occupancy, type = "n", ...)
       polygon(c(head(date, 2), rep(tail(date, -2), each = 2)),
               c(first(occupancy),
                 rep(tail(head(occupancy, -1), -1), each = 2),
                 last(occupancy)), col = "grey")
-    })
+      })
+  abline(v = y, col = "red")
 }
 ```
 
-Plotting the wards occupancies:
+where `x` is an output from `ward_occupancy()` and `y` is the date of the last
+admission of the ward. Putting the ward and dates data together, using
+`discharge_dates` for patients who did not provide any sample at discharge (for the
+latter, the time is set to noon and, for those who have admission and discharge the
+same day with admission in the afternoon, discharge time is then set to one hour after
+admission):
 
-```{r eval = F}
-walk(w_occu, plot_occ)
+```{r}
+(ward_dates <- wards |>
+   left_join(dates, "USUBJID") |> 
+   left_join(discharge_dates, "USUBJID") |> 
+   mutate(across(DISCHARGE, ~ if_else(is.na(.x), `Discharge date`, .x)),
+          across(DISCHARGE, ~ if_else(as_date(DISCHARGE) == as_date(ADMISSION) &
+                                        DISCHARGE < ADMISSION,
+                                      ADMISSION + hours(1), DISCHARGE))) |>
+   select(- `Discharge date`))
 ```
 
+Verifying that `DISCHARGE` is after `ADMISSION`:
+
+```{r}
+ward_dates |> 
+  na.exclude() |> 
+  filter(DISCHARGE < ADMISSION)
+```
+
+Computing the dates of last admissions for each ward:
+
+```{r}
+last_admissions <- ward_dates |> 
+  select(-DISCHARGE) |> 
+  na.exclude() |> 
+  group_by(ward) |> 
+  group_modify(~ .x |>
+                   arrange(ADMISSION) |>
+                   last()) |> 
+  ungroup() |> 
+  pull(ADMISSION)
+```
+
+Computing and plotting the ward occupancies:
+
+```{r fig.height = 10.38, fig.width  = 8.3}
+opar <- par(mfrow = c(8, 4))
+ward_dates |> 
+  group_by(ward) |> 
+  group_map(~ ward_occupancy(.x), .keep = TRUE) |> 
+  walk2(last_admissions, plot_occ, ann = FALSE)
+par(opar)
+```
+
+
+### Durations
+
+The distribution of the durations of stay in the wards:
+
+```{r}
+ward_dates |> 
+  mutate(duration = as.numeric(DISCHARGE - ADMISSION) / 1440) |> 
+  pull(duration) |> 
+  hist2(xlab = "duration of stay (days)", ylab = "number of patients")
+```
 
 
 ## MALDI-TOF data
@@ -328,6 +444,37 @@ Reading the MALDI-TOF data:
   paste0(MALDITOF_file) |>
   read_excel() |> 
   select(USUBJID, SampleSchedule, Identification_MALDITOF))
+```
+
+The distribution of bacteria across the samples:
+
+```{r}
+MALDITOF |> 
+  group_by(Identification_MALDITOF) |> 
+  tally() |> 
+  mutate(`%` = round(100 * n / sum(n), 1)) |> 
+  arrange(desc(n))
+```
+
+The list of samples:
+
+```{r}
+(MALDITOF_samples <- MALDITOF |> 
+   select(- Identification_MALDITOF) |> 
+   unique())
+```
+
+Let's look at the number of patients that have a sample at discharge only, at 
+admission only and at both admission and discharge:
+
+```{r}
+MALDITOF_samples |> 
+  mutate(state = 1) |> 
+  pivot_wider(names_from = SampleSchedule, values_from = state) |> 
+  mutate(across(-USUBJID, ~ ! is.na(.x))) |> 
+  group_by(ADMISSION, DISCHARGE) |> 
+  tally() |> 
+  ungroup()
 ```
 
 
@@ -421,15 +568,6 @@ Which gives:
 
 ```{r}
 K_pneumoniae_raw
-```
-
-Not all the patients have both `ADMISSION` and `DISCHARGE`:
-
-```{r}
-K_pneumoniae_raw |> 
-  pull(USUBJID) |> 
-  table() |> 
-  table()
 ```
 
 Selecting the patients that have samples from at least 2 time points:
@@ -555,7 +693,7 @@ q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000)
 if (file_exists("q_array.rds")) {
   q_array <- readRDS2("q_array.rds")
 } else {
-  q_array <- boot_msm(msm_fit, qmatrix.msm, 1000)
+  q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000)
   saveRDS2(q_array, "q_array.rds")
 }
 ```
