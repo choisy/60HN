@@ -413,7 +413,7 @@ last_admissions <- ward_dates |>
 
 Computing and plotting the ward occupancies:
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r occupancies_figure, fig.height = 10.38, fig.width  = 8.3}
 opar <- par(mfrow = c(8, 4))
 ward_dates |> 
   group_by(ward) |> 
