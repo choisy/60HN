@@ -291,9 +291,15 @@ dates
 The number of missing samples at discharge:
 
 ```{r}
-dates |> 
-  filter(is.na(DISCHARGE)) |> 
-  nrow()
+(nb_missing_samples <- dates |> 
+   filter(is.na(DISCHARGE)) |> 
+   nrow())
+```
+
+The total number of samples is thus:
+
+```{r}
+(nb_samples <- 2 * nrow(dates) - nb_missing_samples)
 ```
 
 Verifying that `DISCHARGE` is after `ADMISSION`:
@@ -446,22 +452,49 @@ Reading the MALDI-TOF data:
   select(USUBJID, SampleSchedule, Identification_MALDITOF))
 ```
 
-The distribution of bacteria across the samples:
+Recoding the isolates that are not identified:
+
+```{r}
+unidentified <- c("No organism identification possible", 
+                  "No peaks found", "no peaks found")
+MALDITOF <- MALDITOF |> 
+  mutate(across(Identification_MALDITOF,
+                ~ if_else(.x %in% unidentified, "unidentified", .x)))
+```
+
+Number of isolates not identified and identified:
 
 ```{r}
 MALDITOF |> 
-  group_by(Identification_MALDITOF) |> 
-  tally() |> 
-  mutate(`%` = round(100 * n / sum(n), 1)) |> 
-  arrange(desc(n))
+  mutate(identification = Identification_MALDITOF != "unidentified") |> 
+  group_by(identification) |> 
+  tally()
 ```
 
-The list of samples:
+The list of positive samples:
 
 ```{r}
 (MALDITOF_samples <- MALDITOF |> 
    select(- Identification_MALDITOF) |> 
    unique())
+```
+
+The number of positive samples:
+
+```{r}
+(nb_positive_samples <- nrow(MALDITOF_samples))
+```
+
+Which represents `{r} round(100 * nb_positive_samples / nb_samples, 2)` % of
+samples. The distribution of bacteria across the samples:
+
+```{r}
+MALDITOF |> 
+  group_by(Identification_MALDITOF) |> 
+  tally() |> 
+  mutate(`% +ve smpls` = round(100 * n / nb_positive_samples, 1),
+         `% all smpls` = round(100 * n / nb_samples, 1)) |> 
+  arrange(desc(n))
 ```
 
 Let's look at the number of patients that have a sample at discharge only, at 
