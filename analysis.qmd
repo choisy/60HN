@@ -426,6 +426,8 @@ last_admissions <- ward_dates |>
 Computing and plotting the ward occupancies:
 
 ```{r occupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+#| label: fig-occupancies
+#| fig-cap: "Number of patients enrolled as a function of time for each ward."
 opar <- par(mfrow = c(8, 4))
 ward_dates |> 
   group_by(ward) |> 
@@ -440,6 +442,8 @@ par(opar)
 The distribution of the durations of stay in the wards:
 
 ```{r distribution_durations}
+#| label: fig-durations_distribution
+#| fig-cap: "The distribution of the time spent in the ward."
 ward_dates |> 
   mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
   pull(duration) |> 
