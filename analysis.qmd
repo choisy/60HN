@@ -566,7 +566,8 @@ Reading the MALDI-TOF data:
 (MALDITOF <- path2data |>
   paste0(MALDITOF_file) |>
   read_excel() |> 
-  select(USUBJID, SampleSchedule, Identification_MALDITOF))
+  select(USUBJID, SampleSchedule, Identification_MALDITOF)) |> 
+  unique()
 ```
 
 Recoding the isolates that are not identified:
@@ -701,6 +702,61 @@ par(opar)
 
 
 ### *K. pneumoniae*
+
+Here we have the same plots as for the previous section but for *K. pneumoniae* only.
+First the number of enrolled patient with CRE *K. pneumoniae* at admission as a
+function of time for each ward:
+
+```{r Kp_occupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+#| label: fig-Kp_occupancies
+#| fig-cap: "Number of enrolled patients with CRE *K pneumonia* at admission as a function of time for each ward."
+opar <- par(mfrow = c(8, 4))
+
+Kp_admission <- MALDITOF |> 
+  filter(SampleSchedule == "ADMISSION",
+         Identification_MALDITOF == "Klebsiella pneumoniae") |> 
+  pull(USUBJID)
+
+ward_dates |> 
+  filter(USUBJID %in% Kp_admission) |> 
+  group_by(ward) |> 
+  group_map(~ ward_occupancy(.x), .keep = TRUE) |> 
+  walk(plot_occ, ann = FALSE)
+
+par(opar)
+```
+
+Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a
+function of time for each ward:
+
+```{r Kp_prevalences_figure, fig.height = 10.38, fig.width  = 8.3}
+#| label: fig-Kp_prevalences
+#| fig-cap: "Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a function of time for each ward."
+
+numerator_df <- ward_dates |> 
+  filter(USUBJID %in% Kp_admission) |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  rename(numerator = occupancy)
+
+opar <- par(mfrow = c(8, 4))
+
+ward_dates |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  ungroup() |> 
+  rename(denominator = occupancy) |>
+  left_join(numerator_df, c("ward", "date")) |> 
+  fill(numerator) |> 
+  mutate(across(numerator, ~ replace_na(.x, 0))) |> 
+  mutate(Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
+  unnest_wider(Clopper_Pearson) |> 
+  group_by(ward) |> 
+  group_walk(~ plot_prevalence(.x))
+
+par(opar)
+```
+
 
 ## Specific functions
 
