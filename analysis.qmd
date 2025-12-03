@@ -146,6 +146,91 @@ A tuning of the `hist()` function:
 hist2 <- function(x, ...) hist(x, floor(min(x)):ceiling(max(x)), ...)
 ```
 
+A wrapper that formats the output of the `binom.test()` function:
+
+```{r}
+binom_test <- function(x, n, ...) {
+  if (n < 1) return(c(estimate = NA, lower = NA, upper = NA))
+  binom.test(x, n, ...) |> 
+    magrittr::extract(c("estimate", "conf.int")) |> 
+    unlist() |> 
+    setNames(c("estimate", "lower", "upper"))
+}
+```
+
+A tuning of the `polygon()` function:
+
+```{r}
+polygon2 <- function(x, y1, y2, ...) polygon(c(x, rev(x)), c(y1, rev(y2)), ...)
+```
+
+Utility functions to convert coordinates to make a stairs plot style:
+
+```{r}
+x_transform <- function(x) c(x[1], rep(x[-1], each = 2))
+y_transform <- function(y) c(rep(head(y, -1), each = 2), last(y))
+```
+
+A function that returns the indexes of the first values of consecutive NAs of a vector:
+
+```{r}
+firstNA <- function(x) {
+  y <- which(is.na(x))
+  z <- diff(y) == 1
+  if (any(z)) return(y[-(which(z) + 1)])
+  y
+}
+```
+
+Example use:
+
+```{r}
+firstNA(c(1, 3, 2, 5, 3, NA, NA, 3, 2, 5, NA, 5, 3, 2, 6, NA, NA, NA, 1, 3, 2, 5, 3))
+```
+
+A function that duplicates the first rows of a series of rows with NA values in the
+`colNA` column, and replaces the values of the `col_sel` columns with values of the
+row right before:
+
+```{r}
+duplicate_NA_rows <- function(x, colNA = "estimate",
+                              col_sel = c("denominator", "numerator", "estimate",
+                                          "lower", "upper")) {
+  x <- mutate(x, .id = row_number())
+  NA_ind <- firstNA(x[[colNA]])
+  duplicates <- x[NA_ind, ]
+  duplicates[, col_sel] <- x[NA_ind - 1, col_sel]
+  duplicates |>
+    bind_rows(x) |> 
+    arrange(.id) |> 
+    select(-.id)
+}
+```
+
+A function that splits a data frame `x` into a list of data frames according to the
+presence of missing values in the `col` column of the data frame:
+
+```{r}
+remove_NAs <- function(x, col) {
+  x |> 
+    mutate(col1 = as.numeric(is.na({{ col }})),
+           col2 = cumsum(col1)) |> 
+    na.exclude() |> 
+    group_by(col2) |> 
+    group_split()
+}
+```
+
+Example use:
+
+```{r}
+carbs <- mtcars$carb
+carbs[c(8, 20:25)] <- NA
+mtcars$carb <- carbs
+remove_NAs(mtcars, carb)
+rm(mtcars)
+```
+
 A tuning of the `msm()` function for a bi-state bi-directional case:
 
 ```{r}
@@ -349,7 +434,7 @@ wards |>
 ```
 
 
-### Exposure
+### Enrolled
 
 A function that computes the data for ward occupancy:
 
@@ -367,7 +452,7 @@ ward_occupancy <- function(x) {
 A function that plots a ward occupancy:
 
 ```{r}
-plot_occ <- function(x, y, ...) {
+plot_occ <- function(x, y = NULL, ...) {
   x |> 
     first() |> 
     mutate(occupancy = 0) |> 
@@ -379,7 +464,7 @@ plot_occ <- function(x, y, ...) {
                 rep(tail(head(occupancy, -1), -1), each = 2),
                 last(occupancy)), col = "grey")
       })
-  abline(v = y, col = "red")
+  if (! is.null(y)) abline(v = y, col = "red")
 }
 ```
 
@@ -434,6 +519,28 @@ ward_dates |>
   group_map(~ ward_occupancy(.x), .keep = TRUE) |> 
   walk2(last_admissions, plot_occ, ann = FALSE)
 par(opar)
+```
+
+
+```{r}
+ward_occupancy <- function(x) {
+  f <- function(...) pivot_longer(..., names_to = "change", values_to = "date")
+  bind_rows(f(select(x, -DISCHARGE), ADMISSION),
+            f(select(x, -ADMISSION), DISCHARGE)) |> 
+    arrange(date) |> 
+    mutate(across(change, ~ setNames(c(1, -1), c("ADMISSION", "DISCHARGE"))[.x])) |> 
+    group_by(date) |> 
+    summarise(change = sum(change)) |> 
+    ungroup() |> 
+    mutate(occupancy = cumsum(change)) |> 
+    select(-change)
+}
+```
+
+```{r}
+ward_dates |> 
+  group_by(ward) |> 
+  group_map(~ ward_occupancy(.x), .keep = TRUE)
 ```
 
 
@@ -520,6 +627,80 @@ MALDITOF_samples |>
   ungroup()
 ```
 
+## CRE exposure
+
+### All CRE
+
+The number of enrolled patient with CRE at admission as a function of time for each
+ward:
+
+```{r CREoccupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+#| label: fig-CREoccupancies
+#| fig-cap: "Number of enrolled patients with CRE at admission as a function of time for each ward."
+opar <- par(mfrow = c(8, 4))
+
+CRE_admission <- MALDITOF_samples |> 
+  filter(SampleSchedule == "ADMISSION") |> 
+  pull(USUBJID)
+
+ward_dates |> 
+  filter(USUBJID %in% CRE_admission) |> 
+  group_by(ward) |> 
+  group_map(~ ward_occupancy(.x), .keep = TRUE) |> 
+  walk(plot_occ, ann = FALSE)
+
+par(opar)
+```
+
+A function that plots the prevalence estimate `estimate` and lower and upper bonds
+`lower` and `upper` of the confidence interval from a data frame of a ward:
+
+```{r}
+plot_prevalence <- function(x) {
+  with(x, plot(x_transform(date), y_transform(estimate),
+               type = "n", ann = FALSE, ylim = 0:1))
+  x |> 
+    duplicate_NA_rows() |> 
+    remove_NAs(estimate) |> 
+    map(~ with(.x, polygon2(x_transform(date), y_transform(lower), y_transform(upper),
+                            col = "grey", border = NA)))
+  with(x, lines(x_transform(date), y_transform(estimate)))
+}
+```
+
+Proportion of enrolled patients that are CRE positive at admission as a function of
+time for each ward:
+
+```{r CREprevalences_figure, fig.height = 10.38, fig.width  = 8.3}
+#| label: fig-CREprevalences
+#| fig-cap: "Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward."
+
+numerator_df <- ward_dates |> 
+  filter(USUBJID %in% CRE_admission) |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  rename(numerator = occupancy)
+
+opar <- par(mfrow = c(8, 4))
+
+ward_dates |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  ungroup() |> 
+  rename(denominator = occupancy) |>
+  left_join(numerator_df, c("ward", "date")) |> 
+  fill(numerator) |> 
+  mutate(across(numerator, ~ replace_na(.x, 0))) |> 
+  mutate(Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
+  unnest_wider(Clopper_Pearson) |> 
+  group_by(ward) |> 
+  group_walk(~ plot_prevalence(.x))
+
+par(opar)
+```
+
+
+### *K. pneumoniae*
 
 ## Specific functions
 
