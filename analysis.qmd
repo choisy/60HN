@@ -444,8 +444,12 @@ ward_occupancy <- function(x) {
   bind_rows(f(select(x, -DISCHARGE), ADMISSION),
             f(select(x, -ADMISSION), DISCHARGE)) |> 
     arrange(date) |> 
-    mutate(across(change, ~ setNames(c(1, -1), c("ADMISSION", "DISCHARGE"))[.x]),
-           occupancy = cumsum(change))
+    mutate(across(change, ~ setNames(c(1, -1), c("ADMISSION", "DISCHARGE"))[.x])) |> 
+    group_by(date) |> 
+    summarise(change = sum(change)) |> 
+    ungroup() |> 
+    mutate(occupancy = cumsum(change)) |> 
+    select(-change)
 }
 ```
 
@@ -522,28 +526,6 @@ par(opar)
 ```
 
 
-```{r}
-ward_occupancy <- function(x) {
-  f <- function(...) pivot_longer(..., names_to = "change", values_to = "date")
-  bind_rows(f(select(x, -DISCHARGE), ADMISSION),
-            f(select(x, -ADMISSION), DISCHARGE)) |> 
-    arrange(date) |> 
-    mutate(across(change, ~ setNames(c(1, -1), c("ADMISSION", "DISCHARGE"))[.x])) |> 
-    group_by(date) |> 
-    summarise(change = sum(change)) |> 
-    ungroup() |> 
-    mutate(occupancy = cumsum(change)) |> 
-    select(-change)
-}
-```
-
-```{r}
-ward_dates |> 
-  group_by(ward) |> 
-  group_map(~ ward_occupancy(.x), .keep = TRUE)
-```
-
-
 ### Durations
 
 The distribution of the durations of stay in the wards:
@@ -616,7 +598,7 @@ MALDITOF |>
 ```
 
 Let's look at the number of patients that have a sample at discharge only, at 
-admission only and at both admission and discharge:
+admission only, and both at admission and discharge:
 
 ```{r}
 MALDITOF_samples |> 
