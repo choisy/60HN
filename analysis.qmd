@@ -1030,4 +1030,8 @@ Or, equivalently, in a formatted output:
 boot_ci(q_array)
 ```
 
+#### Covariables
 
+## To do
+
+ 
