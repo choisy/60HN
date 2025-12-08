@@ -224,11 +224,11 @@ remove_NAs <- function(x, col) {
 Example use:
 
 ```{r}
-carbs <- mtcars$carb
-carbs[c(8, 20:25)] <- NA
-mtcars$carb <- carbs
-remove_NAs(mtcars, carb)
-rm(mtcars)
+# carbs <- mtcars$carb
+# carbs[c(8, 20:25)] <- NA
+# mtcars$carb <- carbs
+# remove_NAs(mtcars, carb)
+# rm(mtcars)
 ```
 
 A tuning of the `msm()` function for a bi-state bi-directional case:
