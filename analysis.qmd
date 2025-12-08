@@ -283,6 +283,12 @@ boot_ci <- function(boots_samples, ci = .95) {
 }
 ```
 
+A function that computes `lubridate`-formatted durations:
+
+```{r}
+time_diff <- function(x) as.duration(diff(x))
+```
+
 
 ## Discharge dates
 
@@ -484,7 +490,7 @@ admission):
    left_join(dates, "USUBJID") |> 
    left_join(discharge_dates, "USUBJID") |> 
    mutate(across(DISCHARGE, ~ if_else(is.na(.x), `Discharge date`, .x)),
-            across(DISCHARGE, ~ if_else(as_date(DISCHARGE) == as_date(ADMISSION) &
+          across(DISCHARGE, ~ if_else(as_date(DISCHARGE) == as_date(ADMISSION) &
                                         DISCHARGE < ADMISSION,
                                       ADMISSION + hours(1), DISCHARGE))) |>
    select(- `Discharge date`))
@@ -651,6 +657,27 @@ plot_prevalence <- function(x) {
 }
 ```
 
+Computing the proportions of CRE positives as a function of time for each ward:
+
+```{r}
+numerator_df <- ward_dates |> 
+  filter(USUBJID %in% CRE_admission) |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  rename(numerator = occupancy)
+
+proportion_CRE <- ward_dates |> 
+  group_by(ward) |> 
+  group_modify(~ ward_occupancy(.x)) |> 
+  ungroup() |> 
+  rename(denominator = occupancy) |>
+  left_join(numerator_df, c("ward", "date")) |> 
+  fill(numerator) |> 
+  mutate(across(numerator, ~ replace_na(.x, 0)),
+         Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
+  unnest_wider(Clopper_Pearson)
+```
+
 Proportion of enrolled patients that are CRE positive at admission as a function of
 time for each ward:
 
@@ -658,27 +685,10 @@ time for each ward:
 #| label: fig-CREprevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward."
 
-numerator_df <- ward_dates |> 
-  filter(USUBJID %in% CRE_admission) |> 
-  group_by(ward) |> 
-  group_modify(~ ward_occupancy(.x)) |> 
-  rename(numerator = occupancy)
-
 opar <- par(mfrow = c(8, 4))
-
-ward_dates |> 
-  group_by(ward) |> 
-  group_modify(~ ward_occupancy(.x)) |> 
-  ungroup() |> 
-  rename(denominator = occupancy) |>
-  left_join(numerator_df, c("ward", "date")) |> 
-  fill(numerator) |> 
-  mutate(across(numerator, ~ replace_na(.x, 0))) |> 
-  mutate(Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
-  unnest_wider(Clopper_Pearson) |> 
+proportion_CRE |> 
   group_by(ward) |> 
   group_walk(~ plot_prevalence(.x))
-
 par(opar)
 ```
 
@@ -730,8 +740,8 @@ ward_dates |>
   rename(denominator = occupancy) |>
   left_join(numerator_df, c("ward", "date")) |> 
   fill(numerator) |> 
-  mutate(across(numerator, ~ replace_na(.x, 0))) |> 
-  mutate(Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
+  mutate(across(numerator, ~ replace_na(.x, 0)),
+         Clopper_Pearson = map2(numerator, denominator, binom_test)) |> 
   unnest_wider(Clopper_Pearson) |> 
   group_by(ward) |> 
   group_walk(~ plot_prevalence(.x))
@@ -807,16 +817,6 @@ state_time <- function(state, time, id, admission, discharge, time_point) {
 ```
 
 The following function puts the 3 above functions together:
-
-```{r include=FALSE, eval=FALSE}
-msm_data <- function(x, y, id, time_point, identification, bacteria,
-                     admission, discharge) {
-  x |>
-    presence_abscence({{ id }}, {{ time_point }}, {{ identification }}, bacteria) |> 
-    select2time_points({{ id }}) |> 
-    state_time(y, {{ id }}, {{ admission }}, {{ discharge }}, {{ time_point }})
-}
-```
 
 ```{r}
 msm_data <- function(x, y, id, time_point, identification, bacteria,
@@ -1030,8 +1030,45 @@ Or, equivalently, in a formatted output:
 boot_ci(q_array)
 ```
 
-#### Covariables
+#### Covariates
 
-## To do
+First covariate: the presence of CRE other than *K. pneumoniae* in the individual:
 
- 
+```{r}
+other_CRE_at_admission <- MALDITOF |> 
+  filter(SampleSchedule == "ADMISSION",
+         Identification_MALDITOF != "Klebsiella pneumoniae") |> 
+  mutate(otherCRE = TRUE) |> 
+  select(USUBJID, otherCRE) |> 
+  unique()
+```
+
+Second covariate: the mean prevalence of CRE positives in the ward:
+
+```{r}
+ward_means <- function(x) {
+  total_duration <- time_diff(range(x$date))
+  x |> 
+    mutate(weight = time_diff(c(date, NA)) / total_duration) |> 
+    summarise(across(c(estimate, lower, upper),
+                     ~ sum(replace_na(.x, 0) * weight, na.rm = TRUE)))
+}
+
+CRE_prevalence_in_ward <- proportion_CRE |> 
+  group_by(ward) |> 
+  group_modify(~ ward_means(.x)) |> 
+  ungroup()
+```
+
+Adding these two covariates to the `msm()` input data set:
+
+```{r}
+(Kp_msm_cov <- Kp_msm |> 
+   left_join(other_CRE_at_admission, "USUBJID") |> 
+   left_join(wards, "USUBJID") |> 
+   left_join(CRE_prevalence_in_ward, "ward") |> 
+   mutate(across(otherCRE, ~ replace_na(.x, FALSE))) |> 
+   select(-value))
+```
+
+
