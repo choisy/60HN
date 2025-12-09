@@ -88,6 +88,12 @@ Number of minutes per day:
 mpd <- 1440
 ```
 
+The number of cores to use for parallel computing:
+
+```{r}
+nb_cores <- 11
+```
+
 
 ## Packages
 
@@ -135,7 +141,8 @@ A function that converts a column `col` of a data frame `x` into a list-column
 col2listcol <- function(x, col) {
   x |> 
     select(- {{ col }}) |> 
-    head(1) |> 
+#    head(1) |> 
+    first() |> 
     bind_cols(tibble("{{col}}" := list(pull(x, {{ col }}))))
 }
 ```
@@ -546,24 +553,19 @@ ward_dates |>
 ```
 
 
-## MALDI-TOF data
+## MALDI-TOF data {#sec-malditof_data}
 
 Reading the MALDI-TOF data:
 
 ```{r}
+unidentified <- c("No organism identification possible", 
+                  "No peaks found", "no peaks found")
+
 (MALDITOF <- path2data |>
   paste0(MALDITOF_file) |>
   read_excel() |> 
   select(USUBJID, SampleSchedule, Identification_MALDITOF)) |> 
-  unique()
-```
-
-Recoding the isolates that are not identified:
-
-```{r}
-unidentified <- c("No organism identification possible", 
-                  "No peaks found", "no peaks found")
-MALDITOF <- MALDITOF |> 
+  unique() |> 
   mutate(across(Identification_MALDITOF,
                 ~ if_else(.x %in% unidentified, "unidentified", .x)))
 ```
@@ -816,7 +818,7 @@ state_time <- function(state, time, id, admission, discharge, time_point) {
 }
 ```
 
-The following function puts the 3 above functions together:
+The following function puts the 4 above functions together:
 
 ```{r}
 msm_data <- function(x, y, id, time_point, identification, bacteria,
@@ -825,10 +827,27 @@ msm_data <- function(x, y, id, time_point, identification, bacteria,
     presence_abscence({{ id }}, {{ time_point }}, {{ identification }}, bacteria) |> 
     add_negatives(y, {{ id }}, {{ time_point }}) |> 
     select2time_points({{ id }}) |> 
-    state_time(y, {{ id }}, {{ admission }}, {{ discharge }}, {{ time_point }})
+    state_time(y, {{ id }}, {{ admission }}, {{ discharge }}, {{ time_point }}) |> 
+    select({{ id }}, state, days)
 }
 ```
 
+where
+
+* `x` is the MALDITOF data as read in section @sec-malditof_data
+* `y` is the dates of samples collections as generated from the CRF in section
+@sec-samples_dates
+* `id` is the unquoted name of the patient ID variable that should be the same in `x`
+and `y`
+* `time_point` is the unquoted name of the variable of `x` that contains the time
+point information that should be either `ADMISSION` or `DISCHARGE`
+* `identification` is the unquoted name of the variable of `x` that contains the name
+of the identified bacteria
+* `bacteria` is a vector of quoted names of bacteria we want to generate the data for
+* `admission` is the unquoted name of the variable of `y` that contains the dates of
+admissions
+* `discharge` is the unquoted name of the variable of `y` that contains the dates of
+discharge
 
 ## *K. pneumoniae*
 
@@ -958,14 +977,15 @@ logLik(Kp_msm_fit)
 Bootstrapping $Q$ estimates (1000 samples, takes 42" in parallel on 11 cores):
 
 ```{r eval = FALSE}
-q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000, cores = 11)
+q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000,
+                   cores = nb_cores)
 ```
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("q_list.rds")) {
   q_list <- readRDS2("q_list.rds")
 } else {
-  q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000, cores = 11)
+  q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000, cores = nb_cores)
   saveRDS2(q_list, "q_list.rds")
 }
 ```
@@ -980,14 +1000,14 @@ q_array <- array(unlist(q_list), dim = c(2, 2, 1000))
 Or we can simply do this instead of the above two successive command lines:
 
 ```{r eval = FALSE}
-q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = 11)
+q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = nb_cores)
 ```
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("q_array.rds")) {
   q_array <- readRDS2("q_array.rds")
 } else {
-  q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = 11)
+  q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = nb_cores)
   saveRDS2(q_array, "q_array.rds")
 }
 ```
@@ -1067,8 +1087,7 @@ Adding these two covariates to the `msm()` input data set:
    left_join(other_CRE_at_admission, "USUBJID") |> 
    left_join(wards, "USUBJID") |> 
    left_join(CRE_prevalence_in_ward, "ward") |> 
-   mutate(across(otherCRE, ~ replace_na(.x, FALSE))) |> 
-   select(-value))
+   mutate(across(otherCRE, ~ replace_na(.x, FALSE))))
 ```
 
 
