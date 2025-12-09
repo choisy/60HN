@@ -415,7 +415,7 @@ dates |>
 ```
 
 
-### Wards
+### Wards {#sec-wards}
 
 > From Huong:
 >
@@ -620,7 +620,7 @@ MALDITOF_samples |>
 
 ## CRE exposure
 
-### All CRE
+### All CRE {#sec-proportion_CRE}
 
 The number of enrolled patient with CRE at admission as a function of time for each
 ward:
@@ -752,7 +752,9 @@ par(opar)
 ```
 
 
-## Specific functions
+## Data preparation
+
+### Minimum data
 
 A function that generates the presence/absence data (coded as 1/2 here) from the output
 `x` of the MALDITOF where `id` is the column of `x` that contains the patient ID,
@@ -840,7 +842,7 @@ where
 * `id` is the unquoted name of the patient ID variable that should be the same in `x`
 and `y`
 * `time_point` is the unquoted name of the variable of `x` that contains the time
-point information that should be either `ADMISSION` or `DISCHARGE`
+point information (for example `ADMISSION` and `DISCHARGE`)
 * `identification` is the unquoted name of the variable of `x` that contains the name
 of the identified bacteria
 * `bacteria` is a vector of quoted names of bacteria we want to generate the data for
@@ -848,6 +850,74 @@ of the identified bacteria
 admissions
 * `discharge` is the unquoted name of the variable of `y` that contains the dates of
 discharge
+
+The output of this function is a data frame with 3 columns:
+
+* the `id` patient ID
+* the `state` variable, with `1` and `2` for not "not infected" and "infected"
+respectively
+* the `days` columns where zeros refers to admissions and non-zero values are the
+times of discharge in days counting from admission
+
+A tuning of `msm_data()`:
+
+```{r}
+msm_data2 <- function(bacteria) msm_data(MALDITOF, dates, USUBJID, SampleSchedule,
+                                         Identification_MALDITOF, bacteria, ADMISSION,
+                                         DISCHARGE)
+```
+
+### Covariates
+
+The following function adds to the output `x` of the `msm_data()` function the
+covariate `otherCRE` that tells whether at admission the patient had a CRE other than
+the set of `bacteria`:
+
+```{r}
+add_other_CRE_at_admission <- function(x, bacteria) {
+  MALDITOF |> 
+    filter(SampleSchedule == "ADMISSION",
+           ! Identification_MALDITOF %in% bacteria) |> 
+    mutate(otherCRE = TRUE) |> 
+    select(USUBJID, otherCRE) |> 
+    unique() |> 
+    left_join(x = x, y = _, "USUBJID") |> 
+    mutate(across(otherCRE, ~ replace_na(.x, FALSE)))
+}
+```
+
+This function relies on the `MALDITOF` data frame generated in section
+@sec-malditof_data. The following function adds to the output `x` of the `msm_data()`
+function the `ward` ID covariate:
+
+```{r}
+add_ward <- function(x) left_join(x, wards, "USUBJID")
+```
+
+This function relies on the `wards` data frame generated in the section @sec-wards. The
+following function adds to the output `x` of the `add_ward()` function the covariates
+`estimate`, `lower` and `upper` that are the temporal means of the proportions of
+enrolled patient that are CRE positive in the ward for the duration of the study:
+
+```{r}
+add_CRE_prevalence_in_ward <- function(x) {
+  ward_means <- function(y) {
+    total_duration <- time_diff(range(y$date))
+    y |> 
+      mutate(weight = time_diff(c(date, NA)) / total_duration) |> 
+      summarise(across(c(estimate, lower, upper),
+                       ~ sum(replace_na(.x, 0) * weight, na.rm = TRUE)))
+  }
+  proportion_CRE |> 
+    group_by(ward) |> 
+    group_modify(~ ward_means(.x)) |> 
+    ungroup() |> 
+    left_join(x = x, y = _, "ward")
+}
+```
+
+This function relies on the `proportion_CRE` data frame generated in the section
+@sec-proportion_CRE.
 
 ## *K. pneumoniae*
 
@@ -917,6 +987,21 @@ which gives:
 
 ```{r}
 Kp_msm
+```
+
+Or, even simpler here:
+
+```{r eval = FALSE}
+Kp_msm <- msm_data2("Klebsiella pneumoniae")
+```
+
+Adding covariates:
+
+```{r}
+(Kp_msm_cov <- Kp_msm |> 
+   add_other_CRE_at_admission("Klebsiella pneumoniae") |> 
+   add_ward() |> 
+   add_CRE_prevalence_in_ward())
 ```
 
 
@@ -1049,45 +1134,4 @@ Or, equivalently, in a formatted output:
 ```{r}
 boot_ci(q_array)
 ```
-
-#### Covariates
-
-First covariate: the presence of CRE other than *K. pneumoniae* in the individual:
-
-```{r}
-other_CRE_at_admission <- MALDITOF |> 
-  filter(SampleSchedule == "ADMISSION",
-         Identification_MALDITOF != "Klebsiella pneumoniae") |> 
-  mutate(otherCRE = TRUE) |> 
-  select(USUBJID, otherCRE) |> 
-  unique()
-```
-
-Second covariate: the mean prevalence of CRE positives in the ward:
-
-```{r}
-ward_means <- function(x) {
-  total_duration <- time_diff(range(x$date))
-  x |> 
-    mutate(weight = time_diff(c(date, NA)) / total_duration) |> 
-    summarise(across(c(estimate, lower, upper),
-                     ~ sum(replace_na(.x, 0) * weight, na.rm = TRUE)))
-}
-
-CRE_prevalence_in_ward <- proportion_CRE |> 
-  group_by(ward) |> 
-  group_modify(~ ward_means(.x)) |> 
-  ungroup()
-```
-
-Adding these two covariates to the `msm()` input data set:
-
-```{r}
-(Kp_msm_cov <- Kp_msm |> 
-   left_join(other_CRE_at_admission, "USUBJID") |> 
-   left_join(wards, "USUBJID") |> 
-   left_join(CRE_prevalence_in_ward, "ward") |> 
-   mutate(across(otherCRE, ~ replace_na(.x, FALSE))))
-```
-
 
