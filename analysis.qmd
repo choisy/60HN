@@ -1007,6 +1007,8 @@ Adding covariates:
 
 ### Multi-state modelling
 
+#### Basic operations
+
 Defining the structure of the $Q$ matrix:
 
 ```{r}
@@ -1133,5 +1135,23 @@ Or, equivalently, in a formatted output:
 
 ```{r}
 boot_ci(q_array)
+```
+
+
+#### Covariates
+
+```{r}
+(Kp_msm_cov_fit <- bsm(state ~ days, USUBJID, Kp_msm_cov,
+                       covariates = list("1-2" = ~ otherCRE)))
+```
+
+```{r}
+qmatrix.msm(Kp_msm_cov_fit, covariates=list(otherCRE = FALSE))
+qmatrix.msm(Kp_msm_cov_fit, covariates=list(otherCRE = TRUE))
+```
+
+```{r}
+(Kp_msm_cov_fit <- bsm(state ~ days, USUBJID, Kp_msm_cov,
+                       covariates = list("1-2" = ~ estimate)))
 ```
 
