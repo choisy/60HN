@@ -101,7 +101,7 @@ Required packages:
 
 ```{r}
 required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm",
-              "rlang")
+              "rlang", "mgcv", "gratia")
 ```
 
 Installing those that are not installed yet:
@@ -150,7 +150,7 @@ col2listcol <- function(x, col) {
 A tuning of the `hist()` function:
 
 ```{r}
-hist2 <- function(x, ...) hist(x, floor(min(x)):ceiling(max(x)), ...)
+hist2 <- function(x, ...) hist(x, floor(min(x)):ceiling(max(x)), main = NA, ...)
 ```
 
 A wrapper that formats the output of the `binom.test()` function:
@@ -440,9 +440,12 @@ Generating the ward data:
 An overview of the number of patients per wards:
 
 ```{r}
-wards |> 
+nb_wards <- wards |> 
   group_by(ward) |> 
-  tally() |> 
+  tally()
+
+nb_wards |> 
+  arrange(desc(n)) |> 
   print(n = Inf)
 ```
 
@@ -550,6 +553,26 @@ ward_dates |>
   mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
   pull(duration) |> 
   hist2(xlab = "duration of stay (days)", ylab = "number of patients")
+```
+
+Let's see whether there any trend on the duration of stay across wards:
+
+```{r duration_x_nb_patients}
+tmp <- ward_dates |> 
+  mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
+  left_join(nb_wards, "ward") |> 
+  select(n, duration)
+
+aaa <- gam(duration ~ s(n), Gamma, tmp, method = "REML") |> 
+  fitted_values(tibble(n = seq(min(tmp$n), max(tmp$n), le = 512)))
+  
+with(tmp, plot(n, duration, type = "n",
+               xlab = "number of patients enrolled", ylab = "duration of stay (days)"))
+with(aaa, {
+  polygon2(n, .lower_ci, .upper_ci, col = "lightgrey", border = NA)
+  lines(n, .fitted)
+})
+with(tmp, points(n, duration))
 ```
 
 
@@ -1154,4 +1177,5 @@ qmatrix.msm(Kp_msm_cov_fit, covariates=list(otherCRE = TRUE))
 (Kp_msm_cov_fit <- bsm(state ~ days, USUBJID, Kp_msm_cov,
                        covariates = list("1-2" = ~ estimate)))
 ```
+
 
