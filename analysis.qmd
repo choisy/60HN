@@ -91,7 +91,7 @@ mpd <- 1440
 The number of cores to use for parallel computing:
 
 ```{r}
-nb_cores <- 11
+nb_cores <- 11 # (maybe not useful anymore)
 ```
 
 
@@ -115,6 +115,12 @@ Loading the packages for interactive use:
 
 ```{r warning = FALSE, message = FALSE}
 invisible(sapply(required, library, character.only = TRUE))
+```
+
+Setting the strategy of the `furrr` package:
+
+```{r}
+plan(multisession)
 ```
 
 
@@ -141,7 +147,6 @@ A function that converts a column `col` of a data frame `x` into a list-column
 col2listcol <- function(x, col) {
   x |> 
     select(- {{ col }}) |> 
-#    head(1) |> 
     first() |> 
     bind_cols(tibble("{{col}}" := list(pull(x, {{ col }}))))
 }
@@ -302,9 +307,9 @@ A function that extracts the estimations with 95% CI of the rate of colonization
 decolonization per 100 patient days:
 
 ```{r}
-estimations <- function(x) {
+bsm_estimations <- function(x, event_names = c("colonization", "clearance")) {
   out <- cbind(matrix(x$estimates.t, 2), x$ci)
-  rownames(out) <- c("colonization", "decolonization")
+  rownames(out) <- event_names
   colnames(out) <- c("estimate", "lower", "upper")
   100 * out
 }
@@ -429,7 +434,7 @@ alluvial <- function (..., freq, col = "gray", border = 0, layer, hide = FALSE,
 
 ```{r}
 alluvial2 <- function(x, print = TRUE, ...) {
-  alluvial(x[, 1:2], freq = x[[3]], col = "steelblue", border = NA, alpha = .8, ...)
+  alluvial(x[, 1:2], freq = x[[3]], ...)
   if (print) return(x)
 }
 ```
@@ -450,7 +455,22 @@ discharge:
 
 ## CRF data
 
-Reading the data:
+Reading the data (it takes 15" in parallel):
+
+```{r}
+system.time(
+CRF <- sheets |> 
+  map(read_excel, path = file) # |> 
+#  setNames(sheets) |> 
+#  future_map(~ .x |>  # de-duplication of records
+#          group_by(USUBJID) |> 
+#          group_modify(~ .x |>
+#                           arrange(desc(entry)) |> 
+#                           first()) |> 
+#          ungroup())
+)
+```
+
 
 ```{r eval = FALSE}
 file <- paste0(path2data, CRF_file)
@@ -462,9 +482,9 @@ sheets <- file |>
 CRF <- sheets |> 
   map(read_excel, path = file) |> 
   setNames(sheets) |> 
-  map(~ .x |>  # de-duplication of records
+  future_map(~ .x |>  # de-duplication of records
           group_by(USUBJID) |> 
-          group_modify(~ .x |>
+          group_modify(~ .x |>     #TO DO: group_split() |> future_amp() |> bind_rows()
                            arrange(desc(entry)) |> 
                            first()) |> 
           ungroup())
@@ -723,9 +743,11 @@ the_model <- gam(duration ~ s(n), Gamma, the_data, method = "REML") |>
 with(the_data, plot(jitter(n, 5), duration, col = adjustcolor("black", .1), pch = 19,
                     xlab = "number of patients enrolled",
                     ylab = "duration of stay (days)"))
+
+color_model <- "steelblue"
 with(the_model, {
-  polygon2(n, .lower_ci, .upper_ci, col = adjustcolor(4, .3))
-  lines(n, .fitted, col = 4)
+  polygon2(n, .lower_ci, .upper_ci, col = adjustcolor(color_model, .3))
+  lines(n, .fitted, col = color_model)
 })
 ```
 
@@ -803,7 +825,16 @@ prevalences <- function(x, nb_positive_samples, nb_samples) {
 Prevalences across all samples:
 
 ```{r}
-(prevalences(MALDITOF, nb_positive_samples, nb_samples))
+(prevalences_all <- prevalences(MALDITOF, nb_positive_samples, nb_samples))
+```
+
+The list of all the bacteria in the MALDITOF results:
+
+```{r}
+(bugs <- prevalences_all |> 
+   filter(Identification_MALDITOF != "unidentified") |> 
+   pull(Identification_MALDITOF) |> 
+   sort())
 ```
 
 Prevalences at admission:
@@ -825,9 +856,12 @@ Prevalences at discharge:
 Let's compare the prevalences at admission and discharge:
 
 ```{r}
-prev_adm_disch <- prevalences_admission |> 
+prev_adm_disch <- prevalences_all |> 
+  select(Identification_MALDITOF) |> 
+  left_join(prevalences_admission) |> 
   left_join(prevalences_discharge,
-            "Identification_MALDITOF", suffix = c(" (A)", " (D)"))
+            "Identification_MALDITOF", suffix = c(" (A)", " (D)")) |> 
+  mutate(across(everything(), ~ replace_na(.x, 0)))
 ```
 
 The number of positive samples:
@@ -864,7 +898,7 @@ The list of bacteria present at admission and absent at discharge:
 ```{r}
 prev_adm_disch |> 
   select(Identification_MALDITOF, starts_with("n")) |> 
-  filter(is.na(`n (D)`))
+  filter(`n (D)` == 0)
 ```
 
 Let's now look at changes in colonization status between admission and discharge. The
@@ -904,7 +938,7 @@ plot_changes <- function(bacteria = "all") {
   }
   the_data |>
     make_alluvial_data() |> 
-    alluvial2()
+    alluvial2(col = "grey", alpha = .8, border = NA)
 }
 ```
 
@@ -1480,32 +1514,25 @@ A first pipeline without any covariate:
 
 ```{r}
 pipeline1 <- function(bacteria) {
+  if (bacteria == "all") bacteria <- bugs
   bacteria |>
     msm_data2() |> 
     bsm(state ~ days, USUBJID, data = _) |> 
-    estimations() |> 
+    bsm_estimations() |> 
     round(2)
 }
 ```
 
-Let's try it out on *K. pneumoniae*:
+Let's estimate the colonization and clearance rates for several different sets of
+bacteria:
 
 ```{r}
-pipeline1("Klebsiella pneumoniae")
+bacteria_sets <- c("all", "Escherichia coli", "Klebsiella pneumoniae",
+                   "Enterobacter hormaechei")
+bacteria_sets |>
+  map(pipeline1) |> 
+  setNames(bacteria_sets)
 ```
-
-Let's try it out on *E. coli*:
-
-```{r}
-pipeline1("Escherichia coli")
-```
-
-Let's try it out on *E. hormaechei*
-
-```{r}
-pipeline1("Enterobacter hormaechei")
-```
-
 
 ```{r include = FALSE, eval = FALSE}
 "Klebsiella pneumoniae" |>
