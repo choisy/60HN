@@ -101,7 +101,7 @@ Required packages:
 
 ```{r}
 required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm",
-              "rlang", "mgcv", "gratia")
+              "rlang", "mgcv", "gratia", "alluvial")
 ```
 
 Installing those that are not installed yet:
@@ -298,6 +298,142 @@ A function that computes `lubridate`-formatted durations:
 time_diff <- function(x) as.duration(diff(x))
 ```
 
+A function that extracts the estimations with 95% CI of the rate of colonization and
+decolonization per 100 patient days:
+
+```{r}
+estimations <- function(x) {
+  out <- cbind(matrix(x$estimates.t, 2), x$ci)
+  rownames(out) <- c("colonization", "decolonization")
+  colnames(out) <- c("estimate", "lower", "upper")
+  100 * out
+}
+```
+
+A tuning of the `alluvial()` function:
+
+```{r include = FALSE}
+alluvial <- function (..., freq, col = "gray", border = 0, layer, hide = FALSE, 
+    alpha = 0.5, gap.width = 0.05, xw = 0.1, cw = 0.1, blocks = TRUE, 
+    ordering = NULL, axis_labels = NULL, cex = par("cex"), cex.axis = par("cex.axis")) 
+{
+    p <- data.frame(..., freq = freq, col, alpha, border, hide, 
+        stringsAsFactors = FALSE)
+    np <- ncol(p) - 5
+    if (!is.null(ordering)) {
+        stopifnot(is.list(ordering))
+        if (length(ordering) != np) 
+            stop("'ordering' argument should have ", np, " components, has ", 
+                length(ordering))
+    }
+    n <- nrow(p)
+    if (missing(layer)) {
+        layer <- 1:n
+    }
+    p$layer <- layer
+    d <- p[, 1:np, drop = FALSE]
+    p <- p[, -c(1:np), drop = FALSE]
+    p$freq <- with(p, freq/sum(freq))
+    col <- col2rgb(p$col, alpha = TRUE)
+    if (!identical(alpha, FALSE)) {
+        col["alpha", ] <- p$alpha * 256
+    }
+    p$col <- apply(col, 2, function(x) do.call(rgb, c(as.list(x), 
+        maxColorValue = 256)))
+    isch <- sapply(d, is.character)
+    d[isch] <- lapply(d[isch], as.factor)
+    if (length(blocks) == 1) {
+        blocks <- if (!is.na(as.logical(blocks))) {
+            rep(blocks, np)
+        }
+        else if (blocks == "bookends") {
+            c(TRUE, rep(FALSE, np - 2), TRUE)
+        }
+    }
+    if (is.null(axis_labels)) {
+        axis_labels <- names(d)
+    }
+    else {
+        if (length(axis_labels) != ncol(d)) 
+            stop("`axis_labels` should have length ", names(d), 
+                ", has ", length(axis_labels))
+    }
+    getp <- function(i, d, f, w = gap.width) {
+        a <- c(i, (1:ncol(d))[-i])
+        if (is.null(ordering[[i]])) {
+            o <- do.call(order, d[a])
+        }
+        else {
+            d2 <- d
+            d2[1] <- ordering[[i]]
+            o <- do.call(order, d2[a])
+        }
+        x <- c(0, cumsum(f[o])) * (1 - w)
+        x <- cbind(x[-length(x)], x[-1])
+        gap <- cumsum(c(0L, diff(as.numeric(d[o, i])) != 0))
+        mx <- max(gap)
+        if (mx == 0) 
+            mx <- 1
+        gap <- gap/mx * w
+        (x + gap)[order(o), ]
+    }
+    dd <- lapply(seq_along(d), getp, d = d, f = p$freq)
+    rval <- list(endpoints = dd)
+    op <- par(mar = c(2, 1, 1, 1))
+    plot(NULL, type = "n", xlim = c(1 - cw, np + cw), ylim = c(0, 
+        1), xaxt = "n", yaxt = "n", xaxs = "i", yaxs = "i", xlab = "", 
+        ylab = "", frame = FALSE)
+    ind <- which(!p$hide)[rev(order(p[!p$hide, ]$layer))]
+    for (i in ind) {
+        for (j in 1:(np - 1)) {
+            xspline(c(j, j, j + xw, j + 1 - xw, j + 1, j + 1, 
+                j + 1 - xw, j + xw, j) + rep(c(cw, -cw, cw), 
+                c(3, 4, 2)), c(dd[[j]][i, c(1, 2, 2)], rev(dd[[j + 
+                1]][i, c(1, 1, 2, 2)]), dd[[j]][i, c(1, 1)]), 
+                shape = c(0, 0, 1, 1, 0, 0, 1, 1, 0, 0), open = FALSE, 
+                col = p$col[i], border = p$border[i])
+        }
+    }
+    for (j in seq_along(dd)) {
+        ax <- lapply(split(dd[[j]], d[, j]), range)
+        if (blocks[j]) {
+            for (k in seq_along(ax)) {
+                rect(j - cw, ax[[k]][1], j + cw, ax[[k]][2])
+            }
+        }
+        else {
+            for (i in ind) {
+                x <- j + c(-1, 1) * cw
+                y <- t(dd[[j]][c(i, i), ])
+                w <- xw * (x[2] - x[1])
+                xspline(x = c(x[1], x[1], x[1] + w, x[2] - w, 
+                  x[2], x[2], x[2] - w, x[1] + w, x[1]), y = c(y[c(1, 
+                  2, 2), 1], y[c(2, 2, 1, 1), 2], y[c(1, 1), 
+                  1]), shape = c(0, 0, 1, 1, 0, 0, 1, 1, 0, 0), 
+                  open = FALSE, col = p$col[i], border = p$border[i])
+            }
+        }
+        for (k in seq_along(ax)) {
+            text(j, mean(ax[[k]]), labels = names(ax)[k], cex = cex)
+        }
+    }
+#    axis(1, at = rep(c(-cw, cw), ncol(d)) + rep(seq_along(d), 
+#        each = 2), line = 0.5, col = "white", col.ticks = "black", 
+#        labels = FALSE)
+    axis(1, at = seq_along(d), tick = FALSE, labels = axis_labels, 
+        cex.axis = cex.axis)
+    par(op)
+    invisible(rval)
+}
+```
+
+```{r}
+alluvial2 <- function(x, print = TRUE, ...) {
+  alluvial(x[, 1:2], freq = x[[3]], col = "steelblue", border = NA, alpha = .8, ...)
+  if (print) return(x)
+}
+```
+
 
 ## Discharge dates
 
@@ -402,11 +538,24 @@ The number of missing samples at discharge:
    nrow())
 ```
 
-The total number of samples is thus:
+The number of samples at admission is:
 
 ```{r}
-(nb_samples <- 2 * nrow(dates) - nb_missing_samples)
+(nb_samples_admission <- nrow(dates))
 ```
+
+The number of samples at discharge is:
+
+```{r}
+(nb_samples_discharge <- nb_samples_admission - nb_missing_samples)
+```
+
+The total number of samples is:
+
+```{r}
+(nb_samples <- nb_samples_admission + nb_samples_discharge)
+```
+
 
 Verifying that `DISCHARGE` is after `ADMISSION`:
 
@@ -532,7 +681,7 @@ last_admissions <- ward_dates |>
 
 Computing and plotting the ward occupancies:
 
-```{r occupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-occupancies
 #| fig-cap: "Number of patients enrolled as a function of time for each ward. The red vertical line indicates the last enrollment."
 opar <- par(mfrow = c(8, 4))
@@ -548,7 +697,7 @@ par(opar)
 
 The distribution of the durations of stay in the wards:
 
-```{r distribution_durations}
+```{r}
 #| label: fig-durations_distribution
 #| fig-cap: "The distribution of the time spent in the ward."
 ward_dates |> 
@@ -559,7 +708,7 @@ ward_dates |>
 
 Let's see whether there any trend on the duration of stay across wards:
 
-```{r duration_x_nb_patients}
+```{r}
 #| label: fig-durations_nb_patients
 #| fig-cap: "The duration of stay as a function of the number of patients enrolled
 #| across the wards."
@@ -592,10 +741,10 @@ unidentified <- c("No organism identification possible",
 (MALDITOF <- path2data |>
   paste0(MALDITOF_file) |>
   read_excel() |> 
-  select(USUBJID, SampleSchedule, Identification_MALDITOF)) |> 
+  select(USUBJID, SampleSchedule, Identification_MALDITOF) |> 
   unique() |> 
   mutate(across(Identification_MALDITOF,
-                ~ if_else(.x %in% unidentified, "unidentified", .x)))
+                ~ if_else(.x %in% unidentified, "unidentified", .x))))
 ```
 
 Number of isolates not identified and identified:
@@ -615,36 +764,170 @@ The list of positive samples:
    unique())
 ```
 
-The number of positive samples:
+The number of positive samples at admission is:
 
 ```{r}
-(nb_positive_samples <- nrow(MALDITOF_samples))
+(nb_positive_samples_admission <- MALDITOF_samples |> 
+   filter(SampleSchedule == "ADMISSION") |> 
+   nrow())
+```
+
+The number of positive samples at admission is:
+
+```{r}
+(nb_positive_samples_discharge <- MALDITOF_samples |> 
+   filter(SampleSchedule == "DISCHARGE") |> 
+   nrow())
+```
+
+The number of positive samples is:
+
+```{r}
+(nb_positive_samples <- nb_positive_samples_admission + nb_positive_samples_discharge)
 ```
 
 Which represents `{r} round(100 * nb_positive_samples / nb_samples, 2)` % of
 samples. The distribution of bacteria across the samples:
 
 ```{r}
-MALDITOF |> 
-  group_by(Identification_MALDITOF) |> 
-  tally() |> 
-  mutate(`% +ve smpls` = round(100 * n / nb_positive_samples, 1),
-         `% all smpls` = round(100 * n / nb_samples, 1)) |> 
-  arrange(desc(n))
+prevalences <- function(x, nb_positive_samples, nb_samples) {
+  x |> 
+    group_by(Identification_MALDITOF) |> 
+    tally() |> 
+    mutate(`% +ve smpls` = round(100 * n / nb_positive_samples, 1),
+           `% all smpls` = round(100 * n / nb_samples, 1)) |> 
+    arrange(desc(n))
+}
 ```
 
-Let's look at the number of patients that have a sample at discharge only, at 
-admission only, and both at admission and discharge:
+Prevalences across all samples:
 
 ```{r}
-MALDITOF_samples |> 
-  mutate(state = 1) |> 
-  pivot_wider(names_from = SampleSchedule, values_from = state) |> 
-  mutate(across(-USUBJID, ~ ! is.na(.x))) |> 
-  group_by(ADMISSION, DISCHARGE) |> 
-  tally() |> 
-  ungroup()
+(prevalences(MALDITOF, nb_positive_samples, nb_samples))
 ```
+
+Prevalences at admission:
+
+```{r}
+(prevalences_admission <- MALDITOF |> 
+   filter(SampleSchedule == "ADMISSION") |> 
+   prevalences(nb_positive_samples_admission, nb_samples_admission))
+```
+
+Prevalences at discharge:
+
+```{r}
+(prevalences_discharge <- MALDITOF |> 
+   filter(SampleSchedule == "DISCHARGE") |> 
+   prevalences(nb_positive_samples_discharge, nb_samples_discharge))
+```
+
+Let's compare the prevalences at admission and discharge:
+
+```{r}
+prev_adm_disch <- prevalences_admission |> 
+  left_join(prevalences_discharge,
+            "Identification_MALDITOF", suffix = c(" (A)", " (D)"))
+```
+
+The number of positive samples:
+
+```{r}
+prev_adm_disch |> 
+  select(Identification_MALDITOF, starts_with("n"))
+```
+
+Their proportion among positive samples:
+
+```{r}
+prev_adm_disch |> 
+  select(Identification_MALDITOF, starts_with("% +"))
+```
+
+Their proportions among all samples:
+
+```{r}
+prev_adm_disch |> 
+  select(Identification_MALDITOF, starts_with("% a"))
+```
+
+The list of bacteria absent at admission and present at discharge:
+
+```{r}
+prev_adm_disch |> 
+  select(Identification_MALDITOF, starts_with("n")) |> 
+  filter(`n (A)` == 0)
+```
+
+The list of bacteria present at admission and absent at discharge:
+
+```{r}
+prev_adm_disch |> 
+  select(Identification_MALDITOF, starts_with("n")) |> 
+  filter(is.na(`n (D)`))
+```
+
+Let's now look at changes in colonization status between admission and discharge. The
+following function prepares the data for an alluvial plot:
+
+```{r}
+make_alluvial_data <- function(x) {
+  positive_samples <- x |> 
+    mutate(state = 2) |> # the exact value here does not matter
+    pivot_wider(names_from = SampleSchedule, values_from = state) |> 
+    mutate(across(-USUBJID, ~ ! is.na(.x)))
+
+  dates |> 
+    filter(! is.na(DISCHARGE)) |> 
+    select(USUBJID) |> 
+    left_join(positive_samples, "USUBJID") |> 
+    mutate(across(-USUBJID, ~ replace_na(.x, FALSE)),
+           across(-USUBJID, ~ c("cleared", "colonized")[as.numeric(.x) + 1])) |> 
+    group_by(ADMISSION, DISCHARGE) |> 
+    tally() |> 
+    ungroup()
+}
+```
+
+The following function is a wrapper around the above function and the the `alluvial2()`
+function that computes the table of changes and plot the alluvial plot for a given set
+of bacteria to consider:
+
+```{r}
+plot_changes <- function(bacteria = "all") {
+  if (bacteria == "all") {
+    the_data <- MALDITOF_samples
+  } else {
+    the_data <- MALDITOF |> 
+           filter(Identification_MALDITOF %in% bacteria) |> 
+           select(- Identification_MALDITOF)
+  }
+  the_data |>
+    make_alluvial_data() |> 
+    alluvial2()
+}
+```
+
+Let's use this function to look at some example:
+
+```{r}
+#| label: fig-alluvial_all
+#| fig-cap: "The change of colonization status by any CRE between admission and discharge."
+plot_changes()
+```
+
+```{r}
+#| label: fig-alluvial_Ecoli
+#| fig-cap: "The change of colonization status by *E. coli* between admission and discharge."
+plot_changes("Escherichia coli")
+```
+
+```{r}
+#| label: fig-alluvial_Kp
+#| fig-cap: "The change of colonization status by *K. pneumoniae* between admission and discharge."
+plot_changes("Klebsiella pneumoniae")
+```
+
 
 ## CRE exposure
 
@@ -653,7 +936,7 @@ MALDITOF_samples |>
 The number of enrolled patient with CRE at admission as a function of time for each
 ward:
 
-```{r CREoccupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-CREoccupancies
 #| fig-cap: "Number of enrolled patients with CRE at admission as a function of time for each ward."
 opar <- par(mfrow = c(8, 4))
@@ -711,7 +994,7 @@ proportion_CRE <- ward_dates |>
 Proportion of enrolled patients that are CRE positive at admission as a function of
 time for each ward:
 
-```{r CREprevalences_figure, fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-CREprevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward."
 
@@ -729,7 +1012,7 @@ Here we have the same plots as for the previous section but for *K. pneumoniae* 
 First the number of enrolled patient with CRE *K. pneumoniae* at admission as a
 function of time for each ward:
 
-```{r Kp_occupancies_figure, fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-Kp_occupancies
 #| fig-cap: "Number of enrolled patients with CRE *K pneumonia* at admission as a function of time for each ward."
 opar <- par(mfrow = c(8, 4))
@@ -751,7 +1034,7 @@ par(opar)
 Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a
 function of time for each ward:
 
-```{r Kp_prevalences_figure, fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-Kp_prevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a function of time for each ward."
 
@@ -1181,6 +1464,59 @@ qmatrix.msm(Kp_msm_cov_fit, covariates=list(otherCRE = TRUE))
 ```{r}
 (Kp_msm_cov_fit <- bsm(state ~ days, USUBJID, Kp_msm_cov,
                        covariates = list("1-2" = ~ estimate)))
+```
+
+
+#### Diagnostics
+
+```{r}
+plot.prevalence.msm(Kp_msm_fit, mintime = 0, maxtime = 15)
+```
+
+
+## Pipeline
+
+A first pipeline without any covariate:
+
+```{r}
+pipeline1 <- function(bacteria) {
+  bacteria |>
+    msm_data2() |> 
+    bsm(state ~ days, USUBJID, data = _) |> 
+    estimations() |> 
+    round(2)
+}
+```
+
+Let's try it out on *K. pneumoniae*:
+
+```{r}
+pipeline1("Klebsiella pneumoniae")
+```
+
+Let's try it out on *E. coli*:
+
+```{r}
+pipeline1("Escherichia coli")
+```
+
+Let's try it out on *E. hormaechei*
+
+```{r}
+pipeline1("Enterobacter hormaechei")
+```
+
+
+```{r include = FALSE, eval = FALSE}
+"Klebsiella pneumoniae" |>
+  msm_data2() |> 
+#  add_other_CRE_at_admission(bacteria) |> 
+#  add_ward() |> 
+#  add_CRE_prevalence_in_ward() |> 
+#  bsm(state ~ days, USUBJID, data = _) |> 
+  bsm2() |> 
+  estimations() |> 
+  round(2)
 ```
 
 
