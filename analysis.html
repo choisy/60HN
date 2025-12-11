@@ -252,7 +252,9 @@ window.Quarto = {
 </div>
 <p>A tuning of the <code>polygon()</code> function:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>polygon2 <span class="ot">&lt;-</span> <span class="cf">function</span>(x, y1, y2, ...) <span class="fu">polygon</span>(<span class="fu">c</span>(x, <span class="fu">rev</span>(x)), <span class="fu">c</span>(y1, <span class="fu">rev</span>(y2)), ...)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>polygon2 <span class="ot">&lt;-</span> <span class="cf">function</span>(x, y1, y2, <span class="at">border =</span> <span class="cn">NA</span>, ...) {</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">polygon</span>(<span class="fu">c</span>(x, <span class="fu">rev</span>(x)), <span class="fu">c</span>(y1, <span class="fu">rev</span>(y2)), <span class="at">border =</span> border, ...)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Utility functions to convert coordinates to make a stairs plot style:</p>
 <div class="cell" data-layout-align="center">
@@ -665,25 +667,30 @@ Figure&nbsp;2: The distribution of the time spent in the ward.
 </div>
 <p>Let’s see whether there any trend on the duration of stay across wards:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>tmp <span class="ot">&lt;-</span> ward_dates <span class="sc">|&gt;</span> </span>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>the_data <span class="ot">&lt;-</span> ward_dates <span class="sc">|&gt;</span> </span>
 <span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">duration =</span> <span class="fu">as.numeric</span>(DISCHARGE <span class="sc">-</span> ADMISSION) <span class="sc">/</span> mpd) <span class="sc">|&gt;</span> </span>
 <span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(nb_wards, <span class="st">"ward"</span>) <span class="sc">|&gt;</span> </span>
 <span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(n, duration)</span>
 <span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>aaa <span class="ot">&lt;-</span> <span class="fu">gam</span>(duration <span class="sc">~</span> <span class="fu">s</span>(n), Gamma, tmp, <span class="at">method =</span> <span class="st">"REML"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fitted_values</span>(<span class="fu">tibble</span>(<span class="at">n =</span> <span class="fu">seq</span>(<span class="fu">min</span>(tmp<span class="sc">$</span>n), <span class="fu">max</span>(tmp<span class="sc">$</span>n), <span class="at">le =</span> <span class="dv">512</span>)))</span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>the_model <span class="ot">&lt;-</span> <span class="fu">gam</span>(duration <span class="sc">~</span> <span class="fu">s</span>(n), Gamma, the_data, <span class="at">method =</span> <span class="st">"REML"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fitted_values</span>(<span class="fu">tibble</span>(<span class="at">n =</span> <span class="fu">seq</span>(<span class="fu">min</span>(the_data<span class="sc">$</span>n), <span class="fu">max</span>(the_data<span class="sc">$</span>n), <span class="at">le =</span> <span class="dv">512</span>)))</span>
 <span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(tmp, <span class="fu">plot</span>(n, duration, <span class="at">type =</span> <span class="st">"n"</span>,</span>
-<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a>               <span class="at">xlab =</span> <span class="st">"number of patients enrolled"</span>, <span class="at">ylab =</span> <span class="st">"duration of stay (days)"</span>))</span>
-<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(aaa, {</span>
-<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">polygon2</span>(n, .lower_ci, .upper_ci, <span class="at">col =</span> <span class="st">"lightgrey"</span>, <span class="at">border =</span> <span class="cn">NA</span>)</span>
-<span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(n, .fitted)</span>
-<span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(tmp, <span class="fu">points</span>(n, duration))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_data, <span class="fu">plot</span>(<span class="fu">jitter</span>(n, <span class="dv">5</span>), duration, <span class="at">col =</span> <span class="fu">adjustcolor</span>(<span class="st">"black"</span>, .<span class="dv">1</span>), <span class="at">pch =</span> <span class="dv">19</span>,</span>
+<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a>                    <span class="at">xlab =</span> <span class="st">"number of patients enrolled"</span>,</span>
+<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a>                    <span class="at">ylab =</span> <span class="st">"duration of stay (days)"</span>))</span>
+<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_model, {</span>
+<span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">polygon2</span>(n, .lower_ci, .upper_ci, <span class="at">col =</span> <span class="fu">adjustcolor</span>(<span class="dv">4</span>, .<span class="dv">3</span>))</span>
+<span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(n, .fitted, <span class="at">col =</span> <span class="dv">4</span>)</span>
+<span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="analysis_files/figure-html/duration_x_nb_patients-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="537"></p>
+<div id="fig-durations_nb_patients" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-durations_nb_patients-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="analysis_files/figure-html/fig-durations_nb_patients-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="537">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-durations_nb_patients-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: The duration of stay as a function of the number of patients enrolled across the wards.
+</figcaption>
 </figure>
 </div>
 </div>
@@ -833,7 +840,7 @@ Figure&nbsp;2: The distribution of the time spent in the ward.
 <img src="analysis_files/figure-html/fig-CREoccupancies-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="796">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-CREoccupancies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: Number of enrolled patients with CRE at admission as a function of time for each ward.
+Figure&nbsp;4: Number of enrolled patients with CRE at admission as a function of time for each ward.
 </figcaption>
 </figure>
 </div>
@@ -848,7 +855,7 @@ Figure&nbsp;3: Number of enrolled patients with CRE at admission as a function o
 <span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">duplicate_NA_rows</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">remove_NAs</span>(estimate) <span class="sc">|&gt;</span> </span>
 <span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">map</span>(<span class="sc">~</span> <span class="fu">with</span>(.x, <span class="fu">polygon2</span>(<span class="fu">x_transform</span>(date), <span class="fu">y_transform</span>(lower), <span class="fu">y_transform</span>(upper),</span>
-<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a>                            <span class="at">col =</span> <span class="st">"grey"</span>, <span class="at">border =</span> <span class="cn">NA</span>)))</span>
+<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a>                            <span class="at">col =</span> <span class="st">"grey"</span>)))</span>
 <span id="cb66-9"><a href="#cb66-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(x, <span class="fu">lines</span>(<span class="fu">x_transform</span>(date), <span class="fu">y_transform</span>(estimate)))</span>
 <span id="cb66-10"><a href="#cb66-10" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -885,7 +892,7 @@ Figure&nbsp;3: Number of enrolled patients with CRE at admission as a function o
 <img src="analysis_files/figure-html/fig-CREprevalences-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="796">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-CREprevalences-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;4: Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward.
+Figure&nbsp;5: Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward.
 </figcaption>
 </figure>
 </div>
@@ -917,7 +924,7 @@ Figure&nbsp;4: Proportion of enrolled patients that are CRE positive at admissio
 <img src="analysis_files/figure-html/fig-Kp_occupancies-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="796">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-Kp_occupancies-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5: Number of enrolled patients with CRE <em>K pneumonia</em> at admission as a function of time for each ward.
+Figure&nbsp;6: Number of enrolled patients with CRE <em>K pneumonia</em> at admission as a function of time for each ward.
 </figcaption>
 </figure>
 </div>
@@ -954,7 +961,7 @@ Figure&nbsp;5: Number of enrolled patients with CRE <em>K pneumonia</em> at admi
 <img src="analysis_files/figure-html/fig-Kp_prevalences-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="796">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-Kp_prevalences-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;6: Proportion of enrolled patients that are CRE <em>K. pneumoniae</em> positive at admission as a function of time for each ward.
+Figure&nbsp;7: Proportion of enrolled patients that are CRE <em>K. pneumoniae</em> positive at admission as a function of time for each ward.
 </figcaption>
 </figure>
 </div>

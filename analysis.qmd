@@ -168,7 +168,9 @@ binom_test <- function(x, n, ...) {
 A tuning of the `polygon()` function:
 
 ```{r}
-polygon2 <- function(x, y1, y2, ...) polygon(c(x, rev(x)), c(y1, rev(y2)), ...)
+polygon2 <- function(x, y1, y2, border = NA, ...) {
+  polygon(c(x, rev(x)), c(y1, rev(y2)), border = border, ...)
+}
 ```
 
 Utility functions to convert coordinates to make a stairs plot style:
@@ -558,21 +560,24 @@ ward_dates |>
 Let's see whether there any trend on the duration of stay across wards:
 
 ```{r duration_x_nb_patients}
-tmp <- ward_dates |> 
+#| label: fig-durations_nb_patients
+#| fig-cap: "The duration of stay as a function of the number of patients enrolled
+#| across the wards."
+the_data <- ward_dates |> 
   mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
   left_join(nb_wards, "ward") |> 
   select(n, duration)
 
-aaa <- gam(duration ~ s(n), Gamma, tmp, method = "REML") |> 
-  fitted_values(tibble(n = seq(min(tmp$n), max(tmp$n), le = 512)))
+the_model <- gam(duration ~ s(n), Gamma, the_data, method = "REML") |> 
+  fitted_values(tibble(n = seq(min(the_data$n), max(the_data$n), le = 512)))
   
-with(tmp, plot(n, duration, type = "n",
-               xlab = "number of patients enrolled", ylab = "duration of stay (days)"))
-with(aaa, {
-  polygon2(n, .lower_ci, .upper_ci, col = "lightgrey", border = NA)
-  lines(n, .fitted)
+with(the_data, plot(jitter(n, 5), duration, col = adjustcolor("black", .1), pch = 19,
+                    xlab = "number of patients enrolled",
+                    ylab = "duration of stay (days)"))
+with(the_model, {
+  polygon2(n, .lower_ci, .upper_ci, col = adjustcolor(4, .3))
+  lines(n, .fitted, col = 4)
 })
-with(tmp, points(n, duration))
 ```
 
 
@@ -677,7 +682,7 @@ plot_prevalence <- function(x) {
     duplicate_NA_rows() |> 
     remove_NAs(estimate) |> 
     map(~ with(.x, polygon2(x_transform(date), y_transform(lower), y_transform(upper),
-                            col = "grey", border = NA)))
+                            col = "grey")))
   with(x, lines(x_transform(date), y_transform(estimate)))
 }
 ```
