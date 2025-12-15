@@ -101,7 +101,7 @@ Required packages:
 
 ```{r}
 required <- c("readxl", "purrr", "dplyr", "lubridate", "magrittr", "tidyr", "msm",
-              "rlang", "mgcv", "gratia", "alluvial")
+              "rlang", "mgcv", "gratia", "alluvial", "furrr")
 ```
 
 Installing those that are not installed yet:
