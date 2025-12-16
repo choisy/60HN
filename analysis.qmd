@@ -1412,7 +1412,7 @@ pipeline1 <- function(bacteria) {
 }
 ```
 
-Looking at the presence of other CRE as a covariate:
+Looking at the presence of other CRE at adminssion as a covariate:
 
 ```{r}
 pipeline2 <- function(bacteria) {
@@ -1471,36 +1471,135 @@ pipeline5 <- function(bacteria) {
 ### Running pipelines
 
 Let's estimate the colonization and clearance rates for several different sets of
-bacteria (takes **10"**):
+bacteria:
 
 ```{r}
 bacteria_sets <- c("all", "Escherichia coli", "Klebsiella pneumoniae",
                    "Enterobacter hormaechei")
-bacteria_sets |>
+```
+
+Estimates without any covariates (takes **10"**):
+
+```{r eval = FALSE}
+pipeline1_results <- bacteria_sets |>
   set_names() |> 
   map(pipeline1)
 ```
 
+```{r include = FALSE, warning = FALSE}
+if (file_exists("pipeline1_results.rds")) {
+  pipeline1_results <- readRDS2("pipeline1_results.rds")
+} else {
+  pipeline1_results <- bacteria_sets |>
+    set_names() |> 
+    map(pipeline1)
+  saveRDS2(pipeline1_results, "pipeline1_results.rds")
+}
+```
+
+which gives:
+
 ```{r}
-bacteria_sets |>
+pipeline1_results
+```
+
+Testing the significativity of the presence of other CRE at admission as a covariate
+(takes **10"**):
+
+```{r eval = FALSE}
+pipeline2_results <- bacteria_sets |>
   set_names() |> 
   map(pipeline2)
 ```
 
+```{r include = FALSE, warning = FALSE}
+if (file_exists("pipeline2_results.rds")) {
+  pipeline2_results <- readRDS2("pipeline2_results.rds")
+} else {
+  pipeline2_results <- bacteria_sets |>
+    set_names() |> 
+    map(pipeline2)
+  saveRDS2(pipeline2_results, "pipeline2_results.rds")
+}
+```
+
+which gives:
+
 ```{r}
-bacteria_sets |>
+pipeline2_results
+```
+
+ (takes **10"**)
+
+```{r eval = FALSE}
+pipeline3_results <- bacteria_sets |>
   set_names() |> 
   map(pipeline3)
 ```
 
+```{r include = FALSE, warning = FALSE}
+if (file_exists("pipeline3_results.rds")) {
+  pipeline3_results <- readRDS2("pipeline3_results.rds")
+} else {
+  pipeline3_results <- bacteria_sets |>
+    set_names() |> 
+    map(pipeline3)
+  saveRDS2(pipeline3_results, "pipeline3_results.rds")
+}
+```
+
+which gives:
+
 ```{r}
-bacteria_sets |>
+pipeline3_results
+```
+
+ (takes **10"**)
+
+```{r eval = FALSE}
+pipeline4_results <- bacteria_sets |>
   set_names() |> 
   map(pipeline4)
 ```
 
+```{r include = FALSE, warning = FALSE}
+if (file_exists("pipeline4_results.rds")) {
+  pipeline4_results <- readRDS2("pipeline4_results.rds")
+} else {
+  pipeline4_results <- bacteria_sets |>
+    set_names() |> 
+    map(pipeline4)
+  saveRDS2(pipeline4_results, "pipeline4_results.rds")
+}
+```
+
+which gives:
+
 ```{r}
-bacteria_sets |>
+pipeline4_results
+```
+
+ (takes **10"**)
+
+```{r eval = FALSE}
+pipeline5_results <- bacteria_sets |>
   set_names() |> 
   map(pipeline5)
+```
+
+```{r include = FALSE, warning = FALSE}
+if (file_exists("pipeline5_results.rds")) {
+  pipeline5_results <- readRDS2("pipeline5_results.rds")
+} else {
+  pipeline5_results <- bacteria_sets |>
+    set_names() |> 
+    map(pipeline5)
+  saveRDS2(pipeline5_results, "pipeline5_results.rds")
+}
+```
+
+which gives:
+
+```{r}
+pipeline5_results
 ```
