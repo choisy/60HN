@@ -1502,6 +1502,8 @@ qmatrix.msm(Kp_msm_cov_fit, covariates=list(otherCRE = TRUE))
 #### Diagnostics
 
 ```{r}
+#| label: fig-diagnostic
+#| fig-cap: "Model diagnostic plot."
 plot.prevalence.msm(Kp_msm_fit, mintime = 0, maxtime = 15)
 ```
 
