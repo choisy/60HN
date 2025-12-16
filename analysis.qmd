@@ -91,7 +91,7 @@ mpd <- 1440
 The number of cores to use for parallel computing:
 
 ```{r}
-nb_cores <- 11 # (maybe not useful anymore)
+nb_cores <- parallel::detectCores() - 1
 ```
 
 
@@ -237,12 +237,12 @@ remove_NAs <- function(x, col) {
 
 Example use:
 
-```{r}
-# carbs <- mtcars$carb
-# carbs[c(8, 20:25)] <- NA
-# mtcars$carb <- carbs
-# remove_NAs(mtcars, carb)
-# rm(mtcars)
+```{r eval = FALSE}
+carbs <- mtcars$carb
+carbs[c(8, 20:25)] <- NA
+mtcars$carb <- carbs
+remove_NAs(mtcars, carb)
+rm(mtcars)
 ```
 
 A tuning of the `msm()` function for a bi-state bi-directional case:
@@ -459,30 +459,15 @@ discharge:
 
 ```{r}
 (discharge_dates <- paste0(path2data, discharge_file) |>
-   read_excel() |> 
-   mutate(across(`Discharge date`, ~ .x + hours(12))) |>  # setting time to noon
-   select(-No, -SiteID, -`Discharge date (2)`))
+  read_excel() |> 
+  mutate(across(`Discharge date`, ~ .x + hours(12))) |>  # setting time to noon
+  select(-No, -SiteID, -`Discharge date (2)`))
 ```
 
 
 ## CRF data
 
-Reading the data (it takes 15" in parallel):
-
-```{r}
-system.time(
-CRF <- sheets |> 
-  map(read_excel, path = file) # |> 
-#  setNames(sheets) |> 
-#  future_map(~ .x |>  # de-duplication of records
-#          group_by(USUBJID) |> 
-#          group_modify(~ .x |>
-#                           arrange(desc(entry)) |> 
-#                           first()) |> 
-#          ungroup())
-)
-```
-
+Reading the data (it takes **12"** in parallel):
 
 ```{r eval = FALSE}
 file <- paste0(path2data, CRF_file)
@@ -494,12 +479,12 @@ sheets <- file |>
 CRF <- sheets |> 
   map(read_excel, path = file) |> 
   setNames(sheets) |> 
-  future_map(~ .x |>  # de-duplication of records
-          group_by(USUBJID) |> 
-          group_modify(~ .x |>     #TO DO: group_split() |> future_amp() |> bind_rows()
-                           arrange(desc(entry)) |> 
-                           first()) |> 
-          ungroup())
+  future_map(~ .x |>   # de-duplication of records
+               group_by(USUBJID) |> 
+               group_modify(~ .x |>
+                              arrange(desc(entry)) |> 
+                              first()) |> 
+               ungroup())
 ```
 
 ```{r include = FALSE, warning = FALSE}
@@ -514,12 +499,12 @@ if (file_exists("CRF.rds")) {
   CRF <- sheets |> 
     map(read_excel, path = file) |> 
     setNames(sheets) |> 
-    map(~ .x |>  # de-duplication of records
-          group_by(USUBJID) |> 
-          group_modify(~ .x |>
-                         arrange(desc(entry)) |> 
-                         first()) |> 
-          ungroup())
+    future_map(~ .x |>   # de-duplication of records
+                 group_by(USUBJID) |> 
+                 group_modify(~ .x |>
+                                arrange(desc(entry)) |> 
+                                first()) |> 
+                 ungroup())
 
   saveRDS2(CRF, "CRF.rds")
 }
@@ -527,7 +512,7 @@ if (file_exists("CRF.rds")) {
 
 ### Samples dates {#sec-samples_dates}
 
-The dates of samples collection at admission and discharge:
+The dates of samples collection at admission and discharge (takes **10"**):
 
 ```{r eval = FALSE}
 dates <- CRF |> 
@@ -566,8 +551,8 @@ The number of missing samples at discharge:
 
 ```{r}
 (nb_missing_samples <- dates |> 
-   filter(is.na(DISCHARGE)) |> 
-   nrow())
+  filter(is.na(DISCHARGE)) |> 
+  nrow())
 ```
 
 The number of samples at admission is:
@@ -614,10 +599,10 @@ Generating the ward data:
 
 ```{r}
 (wards <- CRF$ADM |> 
-   mutate(across(starts_with("WARD"), as.numeric),
-          ward = paste0(SITEID, WARD_1, WARD_2, WARD_3)) |> 
-   arrange(SITEID) |> 
-   select(USUBJID, ward))
+  mutate(across(starts_with("WARD"), as.numeric),
+         ward = paste0(SITEID, WARD_1, WARD_2, WARD_3)) |> 
+  arrange(SITEID) |> 
+  select(USUBJID, ward))
 ```
 
 An overview of the number of patients per wards:
@@ -680,13 +665,13 @@ admission):
 
 ```{r}
 (ward_dates <- wards |>
-   left_join(dates, "USUBJID") |> 
-   left_join(discharge_dates, "USUBJID") |> 
-   mutate(across(DISCHARGE, ~ if_else(is.na(.x), `Discharge date`, .x)),
-          across(DISCHARGE, ~ if_else(as_date(DISCHARGE) == as_date(ADMISSION) &
-                                        DISCHARGE < ADMISSION,
-                                      ADMISSION + hours(1), DISCHARGE))) |>
-   select(- `Discharge date`))
+  left_join(dates, "USUBJID") |> 
+  left_join(discharge_dates, "USUBJID") |> 
+  mutate(across(DISCHARGE, ~ if_else(is.na(.x), `Discharge date`, .x)),
+         across(DISCHARGE, ~ if_else(as_date(DISCHARGE) == as_date(ADMISSION) &
+                                       DISCHARGE < ADMISSION,
+                                     ADMISSION + hours(1), DISCHARGE))) |>
+  select(- `Discharge date`))
 ```
 
 Verifying that `DISCHARGE` is after `ADMISSION`:
@@ -794,24 +779,24 @@ The list of positive samples:
 
 ```{r}
 (MALDITOF_samples <- MALDITOF |> 
-   select(- Identification_MALDITOF) |> 
-   unique())
+  select(- Identification_MALDITOF) |> 
+  unique())
 ```
 
 The number of positive samples at admission is:
 
 ```{r}
 (nb_positive_samples_admission <- MALDITOF_samples |> 
-   filter(SampleSchedule == "ADMISSION") |> 
-   nrow())
+  filter(SampleSchedule == "ADMISSION") |> 
+  nrow())
 ```
 
 The number of positive samples at admission is:
 
 ```{r}
 (nb_positive_samples_discharge <- MALDITOF_samples |> 
-   filter(SampleSchedule == "DISCHARGE") |> 
-   nrow())
+  filter(SampleSchedule == "DISCHARGE") |> 
+  nrow())
 ```
 
 The number of positive samples is:
@@ -844,25 +829,25 @@ The list of all the bacteria in the MALDITOF results:
 
 ```{r}
 (bugs <- prevalences_all |> 
-   filter(Identification_MALDITOF != "unidentified") |> 
-   pull(Identification_MALDITOF) |> 
-   sort())
+  filter(Identification_MALDITOF != "unidentified") |> 
+  pull(Identification_MALDITOF) |> 
+  sort())
 ```
 
 Prevalences at admission:
 
 ```{r}
 (prevalences_admission <- MALDITOF |> 
-   filter(SampleSchedule == "ADMISSION") |> 
-   prevalences(nb_positive_samples_admission, nb_samples_admission))
+  filter(SampleSchedule == "ADMISSION") |> 
+  prevalences(nb_positive_samples_admission, nb_samples_admission))
 ```
 
 Prevalences at discharge:
 
 ```{r}
 (prevalences_discharge <- MALDITOF |> 
-   filter(SampleSchedule == "DISCHARGE") |> 
-   prevalences(nb_positive_samples_discharge, nb_samples_discharge))
+  filter(SampleSchedule == "DISCHARGE") |> 
+  prevalences(nb_positive_samples_discharge, nb_samples_discharge))
 ```
 
 Let's compare the prevalences at admission and discharge:
@@ -870,9 +855,9 @@ Let's compare the prevalences at admission and discharge:
 ```{r}
 prev_adm_disch <- prevalences_all |> 
   select(Identification_MALDITOF) |> 
-  left_join(prevalences_admission) |> 
-  left_join(prevalences_discharge,
-            "Identification_MALDITOF", suffix = c(" (A)", " (D)")) |> 
+  left_join(prevalences_admission, "Identification_MALDITOF") |> 
+  left_join(prevalences_discharge, "Identification_MALDITOF",
+            suffix = c(" (A)", " (D)")) |> 
   mutate(across(everything(), ~ replace_na(.x, 0)))
 ```
 
@@ -980,7 +965,7 @@ plot_changes("Klebsiella pneumoniae")
 ### All CRE {#sec-proportion_CRE}
 
 The number of enrolled patient with CRE at admission as a function of time for each
-ward:
+ward (takes **1.5"**):
 
 ```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-CREoccupancies
@@ -1016,7 +1001,8 @@ plot_prevalence <- function(x) {
 }
 ```
 
-Computing the proportions of CRE positives as a function of time for each ward:
+Computing the proportions of CRE positives as a function of time for each ward (takes
+**1.5"**):
 
 ```{r}
 numerator_df <- ward_dates |> 
@@ -1038,7 +1024,7 @@ proportion_CRE <- ward_dates |>
 ```
 
 Proportion of enrolled patients that are CRE positive at admission as a function of
-time for each ward:
+time for each ward (takes **1.5"**):
 
 ```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-CREprevalences
@@ -1056,7 +1042,7 @@ par(opar)
 
 Here we have the same plots as for the previous section but for *K. pneumoniae* only.
 First the number of enrolled patient with CRE *K. pneumoniae* at admission as a
-function of time for each ward:
+function of time for each ward (takes **1"**):
 
 ```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-Kp_occupancies
@@ -1078,12 +1064,11 @@ par(opar)
 ```
 
 Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a
-function of time for each ward:
+function of time for each ward (takes **1.5"**):
 
 ```{r fig.height = 10.38, fig.width  = 8.3}
 #| label: fig-Kp_prevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a function of time for each ward."
-
 numerator_df <- ward_dates |> 
   filter(USUBJID %in% Kp_admission) |> 
   group_by(ward) |> 
@@ -1280,7 +1265,7 @@ This function relies on the `proportion_CRE` data frame generated in the section
 
 ### Preparing the data
 
-Generating the presence/absence of *K. pneumoniae*:
+Generating the presence/absence of *K. pneumoniae* (takes **2.5"**):
 
 ```{r eval = FALSE}
 K_pneumoniae_raw <- presence_abscence(MALDITOF, USUBJID, SampleSchedule,
@@ -1323,7 +1308,7 @@ Making the dataset for the multistate modelling:
                       ADMISSION, DISCHARGE, SampleSchedule))
 ```
 
-Alternatively, we can do all at once with this function:
+Alternatively, we can do all at once with this function (takes **2.5"**):
 
 ```{r eval = FALSE}
 Kp_msm <- msm_data(MALDITOF, dates, USUBJID, SampleSchedule, Identification_MALDITOF,
@@ -1346,7 +1331,7 @@ which gives:
 Kp_msm
 ```
 
-Or, even simpler here:
+Or, even simpler here (takes **2.5"**):
 
 ```{r eval = FALSE}
 Kp_msm <- msm_data2("Klebsiella pneumoniae")
@@ -1418,7 +1403,7 @@ logLik(Kp_msm_fit)
 
 #### Bootstrapped CIs
 
-Bootstrapping $Q$ estimates (1000 samples, takes 42" in parallel on 11 cores):
+Bootstrapping $Q$ estimates (1000 samples, takes **42" in parallel** on 11 cores):
 
 ```{r eval = FALSE}
 q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000,
@@ -1441,7 +1426,8 @@ Reformating the output into an array of dimension 2, 2, and 1000 (i.e. 2 states 
 q_array <- array(unlist(q_list), dim = c(2, 2, 1000))
 ```
 
-Or we can simply do this instead of the above two successive command lines:
+Or we can simply do this instead of the above two successive command lines (takes **42"
+in parallel** on 11 cores):
 
 ```{r eval = FALSE}
 q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = nb_cores)
@@ -1536,7 +1522,7 @@ pipeline1 <- function(bacteria) {
 ```
 
 Let's estimate the colonization and clearance rates for several different sets of
-bacteria:
+bacteria (takes **10"**):
 
 ```{r}
 bacteria_sets <- c("all", "Escherichia coli", "Klebsiella pneumoniae",
