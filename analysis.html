@@ -186,7 +186,8 @@ window.Quarto = {
 </div>
 <p>The name of the CRF data file:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>CRF_file <span class="ot">&lt;-</span> <span class="st">"25-11-2025-_60HN_PATIENT_P1_Data.xls"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>CRF_file <span class="ot">&lt;-</span> <span class="st">"25-11-2025-_60HN_PATIENT_P1_Data.xls"</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">#CRF_file &lt;- "16-12-2025-_60HN_PATIENT_P1_Data.xls"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The name of the MALDI-TOF data file:</p>
 <div class="cell" data-layout-align="center">
@@ -199,7 +200,8 @@ window.Quarto = {
 </div>
 <p>The number of cores to use for parallel computing:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>nb_cores <span class="ot">&lt;-</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>() <span class="sc">-</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">#nb_cores &lt;- parallel::detectCores() - 1</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>nb_cores <span class="ot">&lt;-</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="packages" class="level2" data-number="2">
@@ -1687,8 +1689,8 @@ State 2  6.165342 1.242748  4.153178  9.152376</code></pre>
 <div class="sourceCode cell-code" id="cb149"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb149-1"><a href="#cb149-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(q_array, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, sd)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            [,1]        [,2]
-[1,] 0.002915611 0.002915611
-[2,] 0.038059276 0.038059276</code></pre>
+[1,] 0.002857443 0.002857443
+[2,] 0.037113720 0.037113720</code></pre>
 </div>
 </div>
 <p>Or, equivalently, in a formatted output:</p>
@@ -1696,8 +1698,8 @@ State 2  6.165342 1.242748  4.153178  9.152376</code></pre>
 <div class="sourceCode cell-code" id="cb151"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a><span class="fu">boot_stat</span>(q_array)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            State 1     State 2
-State 1 0.002915611 0.002915611
-State 2 0.038059276 0.038059276</code></pre>
+State 1 0.002857443 0.002857443
+State 2 0.037113720 0.037113720</code></pre>
 </div>
 </div>
 <p>And with the mean:</p>
@@ -1705,8 +1707,8 @@ State 2 0.038059276 0.038059276</code></pre>
 <div class="sourceCode cell-code" id="cb153"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a><span class="fu">boot_stat</span>(q_array, mean)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            State 1     State 2
-State 1 -0.02001547  0.02001547
-State 2  0.16552718 -0.16552718</code></pre>
+State 1 -0.02008674  0.02008674
+State 2  0.16619438 -0.16619438</code></pre>
 </div>
 </div>
 <p>Or the median:</p>
@@ -1714,8 +1716,8 @@ State 2  0.16552718 -0.16552718</code></pre>
 <div class="sourceCode cell-code" id="cb155"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb155-1"><a href="#cb155-1" aria-hidden="true" tabindex="-1"></a><span class="fu">boot_stat</span>(q_array, median)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            State 1     State 2
-State 1 -0.01980986  0.01980986
-State 2  0.16110287 -0.16110287</code></pre>
+State 1 -0.01981894  0.01981894
+State 2  0.16238505 -0.16238505</code></pre>
 </div>
 </div>
 <p>The bootstrap estimate of the 95% confidence interval:</p>
@@ -1727,14 +1729,14 @@ State 2  0.16110287 -0.16110287</code></pre>
 <pre><code>, , 1
 
              [,1]       [,2]
-2.5%  -0.02636783 0.01495202
-97.5% -0.01495202 0.02636783
+2.5%  -0.02642874 0.01520778
+97.5% -0.01520778 0.02642874
 
 , , 2
 
            [,1]       [,2]
-2.5%  0.1045769 -0.2530344
-97.5% 0.2530344 -0.1045769</code></pre>
+2.5%  0.1030518 -0.2462735
+97.5% 0.2462735 -0.1030518</code></pre>
 </div>
 </div>
 <p>Or, equivalently, in a formatted output:</p>
@@ -1744,14 +1746,14 @@ State 2  0.16110287 -0.16110287</code></pre>
 <pre><code>, , State 1
 
           State 1    State 2
-2.5%  -0.02636783 0.01495202
-97.5% -0.01495202 0.02636783
+2.5%  -0.02642874 0.01520778
+97.5% -0.01520778 0.02642874
 
 , , State 2
 
         State 1    State 2
-2.5%  0.1045769 -0.2530344
-97.5% 0.2530344 -0.1045769</code></pre>
+2.5%  0.1030518 -0.2462735
+97.5% 0.2462735 -0.1030518</code></pre>
 </div>
 </div>
 </section>

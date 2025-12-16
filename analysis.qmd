@@ -72,7 +72,8 @@ discharge_file <- "60HN - DischargeDate_no_discharge_sample_27Nov25.xlsx"
 The name of the CRF data file:
 
 ```{r}
-CRF_file <- "25-11-2025-_60HN_PATIENT_P1_Data.xls"
+#CRF_file <- "25-11-2025-_60HN_PATIENT_P1_Data.xls"
+CRF_file <- "16-12-2025-_60HN_PATIENT_P1_Data.xls"
 ```
 
 The name of the MALDI-TOF data file:
@@ -91,7 +92,8 @@ mpd <- 1440
 The number of cores to use for parallel computing:
 
 ```{r}
-nb_cores <- parallel::detectCores() - 1
+#nb_cores <- parallel::detectCores() - 1
+nb_cores <- 1
 ```
 
 
