@@ -614,6 +614,8 @@ Let's see whether there any trend on the duration of stay across wards:
 #| label: fig-durations_nb_patients
 #| fig-cap: "The duration of stay as a function of the number of patients enrolled
 #| across the wards."
+set.seed(123)
+
 the_data <- ward_dates |> 
   mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
   left_join(nb_wards, "ward") |> 
@@ -1395,6 +1397,8 @@ plot.prevalence.msm(Kp_msm_fit, mintime = 0, maxtime = 15)
 
 ## Pipelines
 
+### The pipelines
+
 A first pipeline without any covariate:
 
 ```{r}
@@ -1406,17 +1410,6 @@ pipeline1 <- function(bacteria) {
     bsm_estimations() |> 
     round(2)
 }
-```
-
-Let's estimate the colonization and clearance rates for several different sets of
-bacteria (takes **10"**):
-
-```{r}
-bacteria_sets <- c("all", "Escherichia coli", "Klebsiella pneumoniae",
-                   "Enterobacter hormaechei")
-bacteria_sets |>
-  set_names() |> 
-  map(pipeline1)
 ```
 
 Looking at the presence of other CRE as a covariate:
@@ -1432,11 +1425,7 @@ pipeline2 <- function(bacteria) {
 }
 ```
 
-```{r}
-bacteria_sets |>
-  set_names() |> 
-  map(pipeline2)
-```
+Pipeline 3:
 
 ```{r}
 pipeline3 <- function(bacteria) {
@@ -1450,11 +1439,7 @@ pipeline3 <- function(bacteria) {
 }
 ```
 
-```{r}
-bacteria_sets |>
-  set_names() |> 
-  map(pipeline3)
-```
+Pipeline 4:
 
 ```{r}
 pipeline4 <- function(bacteria) {
@@ -1468,11 +1453,7 @@ pipeline4 <- function(bacteria) {
 }
 ```
 
-```{r}
-bacteria_sets |>
-  set_names() |> 
-  map(pipeline4)
-```
+Pipeline 5:
 
 ```{r}
 pipeline5 <- function(bacteria) {
@@ -1484,6 +1465,38 @@ pipeline5 <- function(bacteria) {
     bsm(state ~ days, USUBJID, data = _, covariates = ~ upper) |> 
     HR()
 }
+```
+
+
+### Running pipelines
+
+Let's estimate the colonization and clearance rates for several different sets of
+bacteria (takes **10"**):
+
+```{r}
+bacteria_sets <- c("all", "Escherichia coli", "Klebsiella pneumoniae",
+                   "Enterobacter hormaechei")
+bacteria_sets |>
+  set_names() |> 
+  map(pipeline1)
+```
+
+```{r}
+bacteria_sets |>
+  set_names() |> 
+  map(pipeline2)
+```
+
+```{r}
+bacteria_sets |>
+  set_names() |> 
+  map(pipeline3)
+```
+
+```{r}
+bacteria_sets |>
+  set_names() |> 
+  map(pipeline4)
 ```
 
 ```{r}
