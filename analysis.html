@@ -715,25 +715,23 @@ Figure&nbsp;2: The distribution of the time spent in the ward.
 </div>
 <p>Let’s see whether there any trend on the duration of stay across wards:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>the_data <span class="ot">&lt;-</span> ward_dates <span class="sc">|&gt;</span> </span>
-<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">duration =</span> <span class="fu">as.numeric</span>(DISCHARGE <span class="sc">-</span> ADMISSION) <span class="sc">/</span> mpd) <span class="sc">|&gt;</span> </span>
-<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(nb_wards, <span class="st">"ward"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(n, duration)</span>
-<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-8"><a href="#cb60-8" aria-hidden="true" tabindex="-1"></a>the_model <span class="ot">&lt;-</span> <span class="fu">gam</span>(duration <span class="sc">~</span> <span class="fu">s</span>(n), Gamma, the_data, <span class="at">method =</span> <span class="st">"REML"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb60-9"><a href="#cb60-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fitted_values</span>(<span class="fu">tibble</span>(<span class="at">n =</span> <span class="fu">seq</span>(<span class="fu">min</span>(the_data<span class="sc">$</span>n), <span class="fu">max</span>(the_data<span class="sc">$</span>n), <span class="at">le =</span> <span class="dv">512</span>)))</span>
-<span id="cb60-10"><a href="#cb60-10" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb60-11"><a href="#cb60-11" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_data, <span class="fu">plot</span>(<span class="fu">jitter</span>(n, <span class="dv">5</span>), duration, <span class="at">col =</span> <span class="fu">adjustcolor</span>(<span class="st">"black"</span>, .<span class="dv">1</span>), <span class="at">pch =</span> <span class="dv">19</span>,</span>
-<span id="cb60-12"><a href="#cb60-12" aria-hidden="true" tabindex="-1"></a>                    <span class="at">xlab =</span> <span class="st">"number of patients enrolled"</span>,</span>
-<span id="cb60-13"><a href="#cb60-13" aria-hidden="true" tabindex="-1"></a>                    <span class="at">ylab =</span> <span class="st">"duration of stay (days)"</span>))</span>
-<span id="cb60-14"><a href="#cb60-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-15"><a href="#cb60-15" aria-hidden="true" tabindex="-1"></a>color_model <span class="ot">&lt;-</span> <span class="st">"steelblue"</span></span>
-<span id="cb60-16"><a href="#cb60-16" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_model, {</span>
-<span id="cb60-17"><a href="#cb60-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">polygon2</span>(n, .lower_ci, .upper_ci, <span class="at">col =</span> <span class="fu">adjustcolor</span>(color_model, .<span class="dv">3</span>))</span>
-<span id="cb60-18"><a href="#cb60-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(n, .fitted, <span class="at">col =</span> color_model)</span>
-<span id="cb60-19"><a href="#cb60-19" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>the_data <span class="ot">&lt;-</span> ward_dates <span class="sc">|&gt;</span> </span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">duration =</span> <span class="fu">as.numeric</span>(DISCHARGE <span class="sc">-</span> ADMISSION) <span class="sc">/</span> mpd) <span class="sc">|&gt;</span> </span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(nb_wards, <span class="st">"ward"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(n, duration)</span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a>the_model <span class="ot">&lt;-</span> <span class="fu">gam</span>(duration <span class="sc">~</span> <span class="fu">s</span>(n), Gamma, the_data, <span class="at">method =</span> <span class="st">"REML"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fitted_values</span>(<span class="fu">tibble</span>(<span class="at">n =</span> <span class="fu">seq</span>(<span class="fu">min</span>(the_data<span class="sc">$</span>n), <span class="fu">max</span>(the_data<span class="sc">$</span>n), <span class="at">le =</span> <span class="dv">512</span>)))</span>
+<span id="cb60-8"><a href="#cb60-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb60-9"><a href="#cb60-9" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_data, <span class="fu">plot</span>(<span class="fu">jitter</span>(n, <span class="dv">5</span>), duration, <span class="at">col =</span> <span class="fu">adjustcolor</span>(<span class="st">"black"</span>, .<span class="dv">1</span>), <span class="at">pch =</span> <span class="dv">19</span>,</span>
+<span id="cb60-10"><a href="#cb60-10" aria-hidden="true" tabindex="-1"></a>                    <span class="at">xlab =</span> <span class="st">"number of patients enrolled"</span>,</span>
+<span id="cb60-11"><a href="#cb60-11" aria-hidden="true" tabindex="-1"></a>                    <span class="at">ylab =</span> <span class="st">"duration of stay (days)"</span>))</span>
+<span id="cb60-12"><a href="#cb60-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb60-13"><a href="#cb60-13" aria-hidden="true" tabindex="-1"></a>color_model <span class="ot">&lt;-</span> <span class="st">"steelblue"</span></span>
+<span id="cb60-14"><a href="#cb60-14" aria-hidden="true" tabindex="-1"></a><span class="fu">with</span>(the_model, {</span>
+<span id="cb60-15"><a href="#cb60-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">polygon2</span>(n, .lower_ci, .upper_ci, <span class="at">col =</span> <span class="fu">adjustcolor</span>(color_model, .<span class="dv">3</span>))</span>
+<span id="cb60-16"><a href="#cb60-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lines</span>(n, .fitted, <span class="at">col =</span> color_model)</span>
+<span id="cb60-17"><a href="#cb60-17" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div id="fig-durations_nb_patients" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1851,7 +1849,7 @@ Figure&nbsp;11: Model diagnostic plot.
 <span id="cb170-7"><a href="#cb170-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(<span class="dv">2</span>)</span>
 <span id="cb170-8"><a href="#cb170-8" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Looking at the presence of other CRE as a covariate:</p>
+<p>Looking at the presence of other CRE at adminssion as a covariate:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb171"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb171-1"><a href="#cb171-1" aria-hidden="true" tabindex="-1"></a>pipeline2 <span class="ot">&lt;-</span> <span class="cf">function</span>(bacteria) {</span>
 <span id="cb171-2"><a href="#cb171-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (bacteria <span class="sc">==</span> <span class="st">"all"</span>) bacteria <span class="ot">&lt;-</span> bugs</span>
@@ -1901,13 +1899,20 @@ Figure&nbsp;11: Model diagnostic plot.
 </section>
 <section id="running-pipelines" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="running-pipelines"><span class="header-section-number">10.2</span> Running pipelines</h3>
-<p>Let’s estimate the colonization and clearance rates for several different sets of bacteria (takes <strong>10”</strong>):</p>
+<p>Let’s estimate the colonization and clearance rates for several different sets of bacteria:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb175"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb175-1"><a href="#cb175-1" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"all"</span>, <span class="st">"Escherichia coli"</span>, <span class="st">"Klebsiella pneumoniae"</span>,</span>
-<span id="cb175-2"><a href="#cb175-2" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"Enterobacter hormaechei"</span>)</span>
-<span id="cb175-3"><a href="#cb175-3" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="sc">|&gt;</span></span>
-<span id="cb175-4"><a href="#cb175-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb175-5"><a href="#cb175-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb175-2"><a href="#cb175-2" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"Enterobacter hormaechei"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Estimates without any covariates (takes <strong>10”</strong>):</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb176"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb176-1"><a href="#cb176-1" aria-hidden="true" tabindex="-1"></a>pipeline1_results <span class="ot">&lt;-</span> bacteria_sets <span class="sc">|&gt;</span></span>
+<span id="cb176-2"><a href="#cb176-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb176-3"><a href="#cb176-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>which gives:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb177"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb177-1"><a href="#cb177-1" aria-hidden="true" tabindex="-1"></a>pipeline1_results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$all
              estimate lower upper
@@ -1930,10 +1935,15 @@ colonization     2.43  0.87   6.82
 clearance       78.39 25.74 238.77</code></pre>
 </div>
 </div>
+<p>Testing the significativity of the presence of other CRE at admission as a covariate (takes <strong>10”</strong>):</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb177"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb177-1"><a href="#cb177-1" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="sc">|&gt;</span></span>
-<span id="cb177-2"><a href="#cb177-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb177-3"><a href="#cb177-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb179"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb179-1"><a href="#cb179-1" aria-hidden="true" tabindex="-1"></a>pipeline2_results <span class="ot">&lt;-</span> bacteria_sets <span class="sc">|&gt;</span></span>
+<span id="cb179-2"><a href="#cb179-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb179-3"><a href="#cb179-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>which gives:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb180"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb180-1"><a href="#cb180-1" aria-hidden="true" tabindex="-1"></a>pipeline2_results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$all
 $all$otherCRETRUE
@@ -1963,10 +1973,15 @@ State 1 - State 2 3.321566 0.2162049 51.02937
 State 2 - State 1 3.850867 0.2543023 58.31319</code></pre>
 </div>
 </div>
+<p>(takes <strong>10”</strong>)</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb179"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb179-1"><a href="#cb179-1" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="sc">|&gt;</span></span>
-<span id="cb179-2"><a href="#cb179-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb179-3"><a href="#cb179-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb182"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb182-1"><a href="#cb182-1" aria-hidden="true" tabindex="-1"></a>pipeline3_results <span class="ot">&lt;-</span> bacteria_sets <span class="sc">|&gt;</span></span>
+<span id="cb182-2"><a href="#cb182-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb182-3"><a href="#cb182-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>which gives:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb183"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb183-1"><a href="#cb183-1" aria-hidden="true" tabindex="-1"></a>pipeline3_results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$all
 $all$estimate
@@ -1996,16 +2011,15 @@ State 1 - State 2 1.949630e-04 3.958249e-15 9602878.4
 State 2 - State 1 1.238565e-05 2.369920e-16  647297.1</code></pre>
 </div>
 </div>
+<p>(takes <strong>10”</strong>)</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb181"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb181-1"><a href="#cb181-1" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="sc">|&gt;</span></span>
-<span id="cb181-2"><a href="#cb181-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb181-3"><a href="#cb181-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning in msm.optim.optim(p = list(inits = c(qbase = 0, qbase = 0, qcov = 0, :
-Iteration limit in optim() reached without convergence. Reported estimates are
-not the maximum likelihood. Increase "maxit" or change optimisation method -
-see help(optim) and help(msm).</code></pre>
+<div class="sourceCode cell-code" id="cb185"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb185-1"><a href="#cb185-1" aria-hidden="true" tabindex="-1"></a>pipeline4_results <span class="ot">&lt;-</span> bacteria_sets <span class="sc">|&gt;</span></span>
+<span id="cb185-2"><a href="#cb185-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb185-3"><a href="#cb185-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<p>which gives:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb186"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb186-1"><a href="#cb186-1" aria-hidden="true" tabindex="-1"></a>pipeline4_results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$all
 $all$lower
@@ -2035,10 +2049,15 @@ State 1 - State 2 5.071798e-05 4.432480e-16 5.803328e+06
 State 2 - State 1 2.417597e-10 1.205184e-21 4.849698e+01</code></pre>
 </div>
 </div>
+<p>(takes <strong>10”</strong>)</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb184"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb184-1"><a href="#cb184-1" aria-hidden="true" tabindex="-1"></a>bacteria_sets <span class="sc">|&gt;</span></span>
-<span id="cb184-2"><a href="#cb184-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb184-3"><a href="#cb184-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb188"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb188-1"><a href="#cb188-1" aria-hidden="true" tabindex="-1"></a>pipeline5_results <span class="ot">&lt;-</span> bacteria_sets <span class="sc">|&gt;</span></span>
+<span id="cb188-2"><a href="#cb188-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb188-3"><a href="#cb188-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map</span>(pipeline5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>which gives:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb189"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb189-1"><a href="#cb189-1" aria-hidden="true" tabindex="-1"></a>pipeline5_results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$all
 $all$upper

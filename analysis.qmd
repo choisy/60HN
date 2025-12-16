@@ -614,8 +614,6 @@ Let's see whether there any trend on the duration of stay across wards:
 #| label: fig-durations_nb_patients
 #| fig-cap: "The duration of stay as a function of the number of patients enrolled
 #| across the wards."
-set.seed(123)
-
 the_data <- ward_dates |> 
   mutate(duration = as.numeric(DISCHARGE - ADMISSION) / mpd) |> 
   left_join(nb_wards, "ward") |> 
