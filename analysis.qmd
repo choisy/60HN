@@ -315,9 +315,21 @@ bsm_estimations <- function(x, event_names = c("colonization", "clearance")) {
 }
 ```
 
-A tuning of the `alluvial()` function:
+Tunings of the `alluvial()` function:
 
-```{r include = FALSE}
+```{r}
+alluvial2 <- alluvial
+b <- body(alluvial2)
+b[26] <- NULL
+body(alluvial2) <- b
+
+alluvial3 <- function(x, print = TRUE, ...) {
+  alluvial2(x[, 1:2], freq = x[[3]], ...)
+  if (print) return(x)
+}
+```
+
+```{r include = FALSE, eval = FALSE}
 alluvial <- function (..., freq, col = "gray", border = 0, layer, hide = FALSE, 
     alpha = 0.5, gap.width = 0.05, xw = 0.1, cw = 0.1, blocks = TRUE, 
     ordering = NULL, axis_labels = NULL, cex = par("cex"), cex.axis = par("cex.axis")) 
@@ -432,7 +444,7 @@ alluvial <- function (..., freq, col = "gray", border = 0, layer, hide = FALSE,
 }
 ```
 
-```{r}
+```{r include = FALSE, eval = FALSE}
 alluvial2 <- function(x, print = TRUE, ...) {
   alluvial(x[, 1:2], freq = x[[3]], ...)
   if (print) return(x)
@@ -923,7 +935,7 @@ make_alluvial_data <- function(x) {
 }
 ```
 
-The following function is a wrapper around the above function and the the `alluvial2()`
+The following function is a wrapper around the above function and the the `alluvial3()`
 function that computes the table of changes and plot the alluvial plot for a given set
 of bacteria to consider:
 
@@ -938,7 +950,7 @@ plot_changes <- function(bacteria = "all") {
   }
   the_data |>
     make_alluvial_data() |> 
-    alluvial2(col = "grey", alpha = .8, border = NA)
+    alluvial3(col = "grey", alpha = .8, border = NA)
 }
 ```
 
