@@ -72,7 +72,6 @@ discharge_file <- "60HN - DischargeDate_no_discharge_sample_27Nov25.xlsx"
 The name of the CRF data file:
 
 ```{r}
-#CRF_file <- "25-11-2025-_60HN_PATIENT_P1_Data.xls"
 CRF_file <- "16-12-2025-_60HN_PATIENT_P1_Data.xls"
 ```
 
@@ -354,46 +353,32 @@ discharge:
 
 ## CRF data
 
-Reading the data (it takes **12"** in parallel):
+Reading the data (it takes **1"**):
 
 ```{r eval = FALSE}
 file <- paste0(path2data, CRF_file)
 
-sheets <- file |>
+CRF <- file |>
   excel_sheets() |> 
-  head(-1)
-
-CRF <- sheets |> 
+  head(-1) |> 
+  set_names() |> 
   map(read_excel, path = file) |> 
-  setNames(sheets) |> 
-  future_map(~ .x |>   # de-duplication of records
-               group_by(USUBJID) |> 
-               group_modify(~ .x |>
-                              arrange(desc(entry)) |> 
-                              first()) |> 
-               ungroup())
+  map(~ filter(.x, entry > 1))
 ```
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("CRF.rds")) {
-  CRF <- readRDS2("CRF.rds")
+  system.time(CRF <- readRDS2("CRF.rds"))
 } else {
   file <- paste0(path2data, CRF_file)
-  sheets <- file |>
+  CRF <- file |>
     excel_sheets() |> 
-    head(-1)
-  
-  CRF <- sheets |> 
+    head(-1) |> 
+    set_names() |> 
     map(read_excel, path = file) |> 
-    setNames(sheets) |> 
-    future_map(~ .x |>   # de-duplication of records
-                 group_by(USUBJID) |> 
-                 group_modify(~ .x |>
-                                arrange(desc(entry)) |> 
-                                first()) |> 
-                 ungroup())
-
-  saveRDS2(CRF, "CRF.rds")
+    map(~ filter(.x, entry > 1))
+  
+    saveRDS2(CRF, "CRF.rds")
 }
 ```
 
