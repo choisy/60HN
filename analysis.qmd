@@ -13,7 +13,7 @@ editor_options:
 ---
 
 ```{r include = FALSE, eval = FALSE}
-knitr::purl("malarone.qmd", "tmp.R", documentation = FALSE)
+knitr::purl("analysis.qmd", "tmp.R", documentation = FALSE)
 source("tmp.R")
 file.remove("tmp.R")
 
@@ -23,6 +23,7 @@ add_nojekyll <- function() {
   gert::git_add(file)
   gert::git_commit("Adding the .nojekyll file")
   gert::git_push()
+  rm(file)
 }
 ```
 
