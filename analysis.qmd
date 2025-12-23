@@ -13,9 +13,11 @@ editor_options:
 ---
 
 ```{r include = FALSE, eval = FALSE}
-knitr::purl("analysis.qmd", "tmp.R", documentation = FALSE)
-source("tmp.R")
-file.remove("tmp.R")
+run_all <- function() {
+  knitr::purl("analysis.qmd", "tmp.R", documentation = FALSE)
+  source("tmp.R")
+  file.remove("tmp.R")  
+}
 
 add_nojekyll <- function() {
   file <- ".nojekyll"
@@ -79,8 +81,7 @@ CRF_file <- "16-12-2025-_60HN_PATIENT_P1_Data.xls"
 The name of the MALDI-TOF data file:
 
 ```{r}
-MALDITOF_file <- paste0("60HN_LAB_ID_20251014_merged_Blue and",
-                        " pink_confirmed by Maldi-TOF.xlsx")
+MALDITOF_file <- "60HN_ID_MALDITOF_confirmation_20251128.xlsx"
 ```
 
 Number of minutes per day:
@@ -627,25 +628,11 @@ with(the_model, {
 Reading the MALDI-TOF data:
 
 ```{r}
-unidentified <- c("No organism identification possible", 
-                  "No peaks found", "no peaks found")
-
 (MALDITOF <- path2data |>
   paste0(MALDITOF_file) |>
   read_excel() |> 
   select(USUBJID, SampleSchedule, Identification_MALDITOF) |> 
-  unique() |> 
-  mutate(across(Identification_MALDITOF,
-                ~ if_else(.x %in% unidentified, "unidentified", .x))))
-```
-
-Number of isolates not identified and identified:
-
-```{r}
-MALDITOF |> 
-  mutate(identification = Identification_MALDITOF != "unidentified") |> 
-  group_by(identification) |> 
-  tally()
+  unique())
 ```
 
 The list of positive samples:
