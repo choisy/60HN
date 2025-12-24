@@ -45,6 +45,7 @@ knitr::opts_chunk$set(margin1    = TRUE,
                       fig.width  = eps * 7) # default is 7 and maximum possible is 8.3
 ```
 
+The all code takes about 10' to run in parallel.
 
 ## Constants
 
@@ -93,8 +94,8 @@ mpd <- 1440
 The number of cores to use for parallel computing:
 
 ```{r}
-#nb_cores <- parallel::detectCores() - 1
-nb_cores <- 1
+nb_cores <- parallel::detectCores() - 1
+#nb_cores <- 1
 ```
 
 
@@ -1576,3 +1577,53 @@ which gives:
 ```{r}
 pipeline5_results
 ```
+
+
+## Hierarchical model
+
+Loading `rstan`:
+
+```{r}
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+Generating the province, hospital and ward data:
+
+```{r}
+provinces <- setNames(rep(c("Dong Thap", "Phu Tho"), each = 6),
+                      c("010", "008", "071", "073",
+                        160, 161, 130, 155, 156, 157, 158, 159))
+
+prov_hosp_ward <- CRF$ADM |> 
+  mutate(across(starts_with("WARD"), as.numeric),
+         ward = paste0(SITEID, WARD_1, WARD_2, WARD_3)) |> 
+  arrange(SITEID) |> 
+  select(USUBJID, SITEID, ward) |> 
+  rename(hosp = SITEID) |> 
+  mutate(prov = provinces[hosp])
+```
+
+Preparing the data for *K. pneumoniae*:
+
+```{r}
+tmp <- Kp_msm |> 
+  mutate(SampleSchedule = ifelse(days == 0, "admission", "discharge"))
+
+durations <- tmp |>
+  pivot_wider(id_cols = -state, names_from = SampleSchedule, values_from = days) |> 
+  select(-admission) |> 
+  rename(days = discharge)
+
+adj_obs <- tmp |> 
+  pivot_wider(id_cols = -days, names_from = SampleSchedule, values_from = state) |> 
+  left_join(durations, "USUBJID") |> 
+  left_join(prov_hosp_ward, "USUBJID") |> 
+  select(USUBJID, prov, hosp, ward, admission, discharge, days)
+```
+
+```{r}
+stan_data
+```
+

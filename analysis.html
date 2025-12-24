@@ -148,6 +148,7 @@ window.Quarto = {
   <li><a href="#the-pipelines" id="toc-the-pipelines" class="nav-link" data-scroll-target="#the-pipelines"><span class="header-section-number">10.1</span> The pipelines</a></li>
   <li><a href="#running-pipelines" id="toc-running-pipelines" class="nav-link" data-scroll-target="#running-pipelines"><span class="header-section-number">10.2</span> Running pipelines</a></li>
   </ul></li>
+  <li><a href="#hierarchical-model" id="toc-hierarchical-model" class="nav-link" data-scroll-target="#hierarchical-model"><span class="header-section-number">11</span> Hierarchical model</a></li>
   </ul>
 </nav>
 </div>
@@ -2063,6 +2064,14 @@ State 2 - State 1 2738.993 17.19156 436381.7</code></pre>
 </div>
 </div>
 </section>
+</section>
+<section id="hierarchical-model" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="hierarchical-model"><span class="header-section-number">11</span> Hierarchical model</h2>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb189"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb189-1"><a href="#cb189-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rstan)</span>
+<span id="cb189-2"><a href="#cb189-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rstan_options</span>(<span class="at">auto_write =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb189-3"><a href="#cb189-3" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">mc.cores =</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 </section>
 
 </main>
