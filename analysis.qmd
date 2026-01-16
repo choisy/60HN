@@ -13,19 +13,26 @@ editor_options:
 ---
 
 ```{r include = FALSE, eval = FALSE}
+# The code that adds the .nojekyll file to the GitHub repository:
+file <- ".nojekyll"
+file.create(file)
+gert::git_add(file)
+gert::git_commit("Adding the .nojekyll file")
+gert::git_push()
+rm(file)
+```
+
+```{r include = FALSE, eval = FALSE}
 run_all <- function() {
   knitr::purl("analysis.qmd", "tmp.R", documentation = FALSE)
   source("tmp.R")
   file.remove("tmp.R")  
 }
 
-add_nojekyll <- function() {
-  file <- ".nojekyll"
-  file.create(file)
-  gert::git_add(file)
-  gert::git_commit("Adding the .nojekyll file")
-  gert::git_push()
-  rm(file)
+rerun_all <- function() {
+  rm(list  = grep("run_all", ls(envir = .GlobalEnv), value = TRUE, invert = TRUE),
+     envir = .GlobalEnv)
+  run_all()
 }
 ```
 
