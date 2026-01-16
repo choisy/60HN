@@ -626,6 +626,13 @@ with(the_model, {
 
 ## MALDI-TOF data {#sec-malditof_data}
 
+List of genus to exclude:
+
+```{r}
+genus2exclude <- c("Aeromonas", "Enterococcus", "Acinetobacter", "Cupriavidus",
+                   "Pseudomonas")
+```
+
 Reading the MALDI-TOF data:
 
 ```{r}
@@ -633,7 +640,10 @@ Reading the MALDI-TOF data:
   paste0(MALDITOF_file) |>
   read_excel() |> 
   select(USUBJID, SampleSchedule, Identification_MALDITOF) |> 
-  unique())
+  unique() |> 
+  mutate(binom_name = Identification_MALDITOF) |> 
+  separate_wider_delim(binom_name, " ", names = c("genus", "species")) |> 
+  filter(! genus %in% genus2exclude))
 ```
 
 The list of positive samples:
@@ -1624,6 +1634,6 @@ adj_obs <- tmp |>
 ```
 
 ```{r}
-stan_data
+#stan_data
 ```
 
