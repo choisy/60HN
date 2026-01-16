@@ -64,15 +64,6 @@ path2data <- paste0("/Users/", Sys.getenv("USER"), "/Library/CloudStorage/",
                     "GitHub/choisy/60HN/")
 ```
 
-```{r include = FALSE}
-path2cache <- paste0(path2data, "cache/")
-if (! dir.exists(path2cache)) dir.create(path2cache)
-make_path <- function(x) paste0(path2cache, x)
-file_exists <- function(x) file.exists(make_path(x))
-readRDScache <- function(x) readRDS(make_path(x))
-saveRDScache <- function(object, file) saveRDS(object, make_path(file))
-```
-
 The name of the file that contains the discharge dates of the patients that did not
 provide samples at discharge:
 
@@ -136,6 +127,21 @@ plan(multisession)
 
 
 ## General functions
+
+```{r include = FALSE}
+path2cache <- paste0(path2data, "cache/")
+if (! dir.exists(path2cache)) dir.create(path2cache)
+make_path <- function(x) paste0(path2cache, x)
+file_exists <- function(x) file.exists(make_path(x))
+readRDScache <- function(x) readRDS(make_path(x))
+saveRDScache <- function(object, file) saveRDS(object, make_path(file))
+```
+
+A tuning of the `readRDS()` function:
+
+```{r}
+readRDS2 <- function(x) readRDS(paste0(path2data, x))
+```
 
 A function that pastes a vector of dates and a vector of times both in character format
 and returns a  `dttm` vector:
@@ -350,7 +356,8 @@ HR <- function(x) summary(x)$hazard
 ## New data
 
 ```{r}
-readRDS()
+PT_merged_not_identify_PSpatient <- readRDS2("PT_merged_not_identify_PSpatient.rds")
+DT_merged_not_identify_PSpatient <- readRDS2("DT_merged_not_identify_PSpatient.rds")
 ```
 
 
