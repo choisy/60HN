@@ -62,8 +62,8 @@ path2cache <- paste0(path2data, "cache/")
 if (! dir.exists(path2cache)) dir.create(path2cache)
 make_path <- function(x) paste0(path2cache, x)
 file_exists <- function(x) file.exists(make_path(x))
-readRDS2 <- function(x) readRDS(make_path(x))
-saveRDS2 <- function(object, file) saveRDS(object, make_path(file))
+readRDScache <- function(x) readRDS(make_path(x))
+saveRDScache <- function(object, file) saveRDS(object, make_path(file))
 ```
 
 The name of the file that contains the discharge dates of the patients that did not
@@ -340,6 +340,12 @@ intervals) of an output of `msm()`:
 HR <- function(x) summary(x)$hazard
 ```
 
+## New data
+
+```{r}
+readRDS()
+```
+
 
 ## Discharge dates
 
@@ -371,7 +377,7 @@ CRF <- file |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("CRF.rds")) {
-  system.time(CRF <- readRDS2("CRF.rds"))
+  system.time(CRF <- readRDScache("CRF.rds"))
 } else {
   file <- paste0(path2data, CRF_file)
   CRF <- file |>
@@ -381,7 +387,7 @@ if (file_exists("CRF.rds")) {
     map(read_excel, path = file) |> 
     map(~ filter(.x, entry > 1))
   
-    saveRDS2(CRF, "CRF.rds")
+    saveRDScache(CRF, "CRF.rds")
 }
 ```
 
@@ -402,7 +408,7 @@ dates <- CRF |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("dates.rds")) {
-  dates <- readRDS2("dates.rds")
+  dates <- readRDScache("dates.rds")
 } else {
   dates <- CRF |> 
     extract2("SCR") |> 
@@ -412,7 +418,7 @@ if (file_exists("dates.rds")) {
            DISCHARGE = as_datetime2(SPEC_DATE_DISCHARGE, SPEC_TIME_DISCHARGE)) |> 
     select(- SPEC_DATE_ADMISSION, - SPEC_TIME_ADMISSION,
            - SPEC_DATE_DISCHARGE, - SPEC_TIME_DISCHARGE)
-  saveRDS2(dates, "dates.rds")
+  saveRDScache(dates, "dates.rds")
 }
 ```
 
@@ -1145,12 +1151,12 @@ K_pneumoniae_raw <- presence_abscence(MALDITOF, USUBJID, SampleSchedule,
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("K_pneumoniae_raw.rds")) {
-  K_pneumoniae_raw <- readRDS2("K_pneumoniae_raw.rds")
+  K_pneumoniae_raw <- readRDScache("K_pneumoniae_raw.rds")
 } else {
   K_pneumoniae_raw <- presence_abscence(MALDITOF, USUBJID, SampleSchedule,
                                         Identification_MALDITOF,
                                         "Klebsiella pneumoniae")
-  saveRDS2(K_pneumoniae_raw, "K_pneumoniae_raw.rds")
+  saveRDScache(K_pneumoniae_raw, "K_pneumoniae_raw.rds")
 }
 ```
 
@@ -1188,11 +1194,11 @@ Kp_msm <- msm_data(MALDITOF, dates, USUBJID, SampleSchedule, Identification_MALD
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("Kp_msm.rds")) {
-  Kp_msm <- readRDS2("Kp_msm.rds")
+  Kp_msm <- readRDScache("Kp_msm.rds")
 } else {
   Kp_msm <- msm_data(MALDITOF, dates, USUBJID, SampleSchedule, Identification_MALDITOF,
                      "Klebsiella pneumoniae", ADMISSION, DISCHARGE)
-  saveRDS2(Kp_msm, "Kp_msm.rds")
+  saveRDScache(Kp_msm, "Kp_msm.rds")
 }
 ```
 
@@ -1283,10 +1289,10 @@ q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000,
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("q_list.rds")) {
-  q_list <- readRDS2("q_list.rds")
+  q_list <- readRDScache("q_list.rds")
 } else {
   q_list <- boot.msm(Kp_msm_fit, function(x) qmatrix.msm(x)$estimates, 1000, cores = nb_cores)
-  saveRDS2(q_list, "q_list.rds")
+  saveRDScache(q_list, "q_list.rds")
 }
 ```
 
@@ -1306,10 +1312,10 @@ q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = nb_cores)
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("q_array.rds")) {
-  q_array <- readRDS2("q_array.rds")
+  q_array <- readRDScache("q_array.rds")
 } else {
   q_array <- boot_msm(Kp_msm_fit, qmatrix.msm, 1000, cores = nb_cores)
-  saveRDS2(q_array, "q_array.rds")
+  saveRDScache(q_array, "q_array.rds")
 }
 ```
 
@@ -1472,12 +1478,12 @@ pipeline1_results <- bacteria_sets |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("pipeline1_results.rds")) {
-  pipeline1_results <- readRDS2("pipeline1_results.rds")
+  pipeline1_results <- readRDScache("pipeline1_results.rds")
 } else {
   pipeline1_results <- bacteria_sets |>
     set_names() |> 
     map(pipeline1)
-  saveRDS2(pipeline1_results, "pipeline1_results.rds")
+  saveRDScache(pipeline1_results, "pipeline1_results.rds")
 }
 ```
 
@@ -1498,12 +1504,12 @@ pipeline2_results <- bacteria_sets |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("pipeline2_results.rds")) {
-  pipeline2_results <- readRDS2("pipeline2_results.rds")
+  pipeline2_results <- readRDScache("pipeline2_results.rds")
 } else {
   pipeline2_results <- bacteria_sets |>
     set_names() |> 
     map(pipeline2)
-  saveRDS2(pipeline2_results, "pipeline2_results.rds")
+  saveRDScache(pipeline2_results, "pipeline2_results.rds")
 }
 ```
 
@@ -1523,12 +1529,12 @@ pipeline3_results <- bacteria_sets |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("pipeline3_results.rds")) {
-  pipeline3_results <- readRDS2("pipeline3_results.rds")
+  pipeline3_results <- readRDScache("pipeline3_results.rds")
 } else {
   pipeline3_results <- bacteria_sets |>
     set_names() |> 
     map(pipeline3)
-  saveRDS2(pipeline3_results, "pipeline3_results.rds")
+  saveRDScache(pipeline3_results, "pipeline3_results.rds")
 }
 ```
 
@@ -1548,12 +1554,12 @@ pipeline4_results <- bacteria_sets |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("pipeline4_results.rds")) {
-  pipeline4_results <- readRDS2("pipeline4_results.rds")
+  pipeline4_results <- readRDScache("pipeline4_results.rds")
 } else {
   pipeline4_results <- bacteria_sets |>
     set_names() |> 
     map(pipeline4)
-  saveRDS2(pipeline4_results, "pipeline4_results.rds")
+  saveRDScache(pipeline4_results, "pipeline4_results.rds")
 }
 ```
 
@@ -1573,12 +1579,12 @@ pipeline5_results <- bacteria_sets |>
 
 ```{r include = FALSE, warning = FALSE}
 if (file_exists("pipeline5_results.rds")) {
-  pipeline5_results <- readRDS2("pipeline5_results.rds")
+  pipeline5_results <- readRDScache("pipeline5_results.rds")
 } else {
   pipeline5_results <- bacteria_sets |>
     set_names() |> 
     map(pipeline5)
-  saveRDS2(pipeline5_results, "pipeline5_results.rds")
+  saveRDScache(pipeline5_results, "pipeline5_results.rds")
 }
 ```
 
