@@ -59,7 +59,7 @@ The all code takes about 10' to run in parallel.
 The folder that contains the data files:
 
 ```{r}
-path2data <- paste0("/Users/", Sys.getenv("USER"), "/Library/CloudStorage/",
+path2data <- paste0(Sys.getenv("HOME"), "/Library/CloudStorage/",
                     "OneDrive-OxfordUniversityClinicalResearchUnit/",
                     "GitHub/choisy/60HN/")
 ```
