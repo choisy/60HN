@@ -593,7 +593,7 @@ last_admissions <- ward_dates |>
 
 Computing and plotting the ward occupancies:
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3, purl = FALSE}
 #| label: fig-occupancies
 #| fig-cap: "Number of patients enrolled as a function of time for each ward. The red vertical line indicates the last enrollment."
 opar <- par(mfrow = c(8, 4))
@@ -858,7 +858,7 @@ plot_changes("Klebsiella pneumoniae")
 The number of enrolled patient with CRE at admission as a function of time for each
 ward (takes **1.5"**):
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3, purl = FALSE}
 #| label: fig-CREoccupancies
 #| fig-cap: "Number of enrolled patients with CRE at admission as a function of time for each ward."
 opar <- par(mfrow = c(8, 4))
@@ -917,7 +917,7 @@ proportion_CRE <- ward_dates |>
 Proportion of enrolled patients that are CRE positive at admission as a function of
 time for each ward (takes **1.5"**):
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3, purl = FALSE}
 #| label: fig-CREprevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE positive at admission as a function of time for each ward."
 
@@ -935,7 +935,7 @@ Here we have the same plots as for the previous section but for *K. pneumoniae* 
 First the number of enrolled patient with CRE *K. pneumoniae* at admission as a
 function of time for each ward (takes **1"**):
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3, purl = FALSE}
 #| label: fig-Kp_occupancies
 #| fig-cap: "Number of enrolled patients with CRE *K pneumonia* at admission as a function of time for each ward."
 opar <- par(mfrow = c(8, 4))
@@ -957,7 +957,7 @@ par(opar)
 Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a
 function of time for each ward (takes **1.5"**):
 
-```{r fig.height = 10.38, fig.width  = 8.3}
+```{r fig.height = 10.38, fig.width  = 8.3, purl = FALSE}
 #| label: fig-Kp_prevalences
 #| fig-cap: "Proportion of enrolled patients that are CRE *K. pneumoniae* positive at admission as a function of time for each ward."
 numerator_df <- ward_dates |> 
