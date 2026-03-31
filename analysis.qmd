@@ -989,7 +989,7 @@ par(opar)
 
 ### Minimum data
 
-A function that generates the presence/absence data (coded as 1/2 here) from the output
+A function that generates the presence/absence data (coded as 2/1 here) from the output
 `x` of the MALDITOF where `id` is the column of `x` that contains the patient ID,
 `time_point` is the column of `x` that contains the time point of the sample (e.g.
 `ADMISSION` or `DISCHARGE`), `identification` is the column of `x` that contains the
