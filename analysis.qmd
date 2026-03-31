@@ -682,7 +682,7 @@ The number of positive samples at admission is:
   nrow())
 ```
 
-The number of positive samples at admission is:
+The number of positive samples at discharge is:
 
 ```{r}
 (nb_positive_samples_discharge <- MALDITOF_samples |> 
@@ -1018,8 +1018,7 @@ add_negatives <- function(x, y, id, time_point) {
   y |> 
     pivot_longer(- {{ id }}, names_to = tp) |> 
     left_join(x, c(as_name(enquo(id)), tp)) |> 
-    mutate(across(state, ~ replace_na(., 1))) |> 
-    na.exclude() # remove the absence of samples
+    mutate(across(state, ~ replace_na(., 1)))
 }
 ```
 
@@ -1028,6 +1027,7 @@ A function that selects patients from `x` who have samples from at least 2 time 
 ```{r}
 select2time_points <- function(x, id) {
   id_with_2obs <- x |> 
+    filter_out(is.na(value)) |> 
     pull({{ id }}) |> 
     table() |> 
     is_greater_than(1) |> 
